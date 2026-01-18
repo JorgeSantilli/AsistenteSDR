@@ -1,0 +1,151 @@
+{
+    "name": "SDR Assistant - Knowledge Ingestion",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "ingest-document",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{$json[\"body\"][\"file_url\"]}}",
+                "responseFormat": "file",
+                "options": {}
+            },
+            "name": "Download File",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "binaryPropertyName": "data"
+            },
+            "name": "Extract Text",
+            "type": "n8n-nodes-base.readBinaryFile",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ],
+            "notes": "Placeholder for actual PDF/Text parsing node or Logic"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForEachItem",
+                "jsCode": "// Simple chunking logic simulation\nconst text = $input.item.json.text || \"\";\nconst orgId = $('Webhook Trigger').item.json.body.organization_id;\n\n// Split by paragraphs approx\nconst chunks = text.split(/\\n\\s*\\n/);\n\nreturn chunks.map(chunk => ({\n  json: {\n    content: chunk.trim(),\n    organization_id: orgId,\n    metadata: { source: 'ingest_workflow' }\n  }\n}));"
+            },
+            "name": "Chunk Text logic",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "text-embedding-3-small",
+                "text": "={{$json[\"content\"]}}"
+            },
+            "name": "OpenAI Embeddings",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "schema": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "public"
+                },
+                "table": {
+                    "__rl": true,
+                    "value": "knowledge_base",
+                    "mode": "list"
+                },
+                "columns": "organization_id, content, embedding, metadata"
+            },
+            "name": "Supabase Insert",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Download File",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Download File": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Text",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Text": {
+            "main": [
+                [
+                    {
+                        "node": "Chunk Text logic",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Chunk Text logic": {
+            "main": [
+                [
+                    {
+                        "node": "OpenAI Embeddings",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI Embeddings": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase Insert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

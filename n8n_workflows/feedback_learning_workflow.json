@@ -1,0 +1,162 @@
+{
+    "name": "SDR Assistant - Feedback & Learning Loop",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "process-feedback",
+                "responseMode": "lastNode",
+                "httpMethod": "POST",
+                "options": {}
+            },
+            "name": "Webhook Feedback",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "schema": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "public"
+                },
+                "table": {
+                    "__rl": true,
+                    "value": "interactions",
+                    "mode": "list"
+                },
+                "returnAll": false,
+                "id": "={{$json[\"body\"][\"interaction_id\"]}}"
+            },
+            "name": "Get Interaction Transcript",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o",
+                "prompt": "Analyze the following sales call transcript. Identify 3 successful objection handling techniques used by the SDR. Output them as 'Question' and 'Answer' pairs suitable for training.\n\nTranscript: {{$json[\"transcript_full\"]}}"
+            },
+            "name": "Analyze Success Patterns",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForEachItem",
+                "jsCode": "// Parse LLM output and structure for insertion\n// Assuming LLM returns a JSON string or we parse it\nconst insights = JSON.parse($input.item.json.content); // Mock parsing\nconst orgId = $('Get Interaction Transcript').item.json.organization_id;\n\nreturn insights.map(i => ({\n  json: {\n    content: `Q: ${i.question}\nA: ${i.answer}`,\n    organization_id: orgId,\n    metadata: { source: 'dynamic_learning', trigger: 'success_feedback' }\n  }\n}));"
+            },
+            "name": "Format Insights",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "text-embedding-3-small",
+                "text": "={{$json[\"content\"]}}"
+            },
+            "name": "Embed New Knowledge",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "schema": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "public"
+                },
+                "table": {
+                    "__rl": true,
+                    "value": "knowledge_base",
+                    "mode": "list"
+                },
+                "columns": "organization_id, content, embedding, metadata"
+            },
+            "name": "Learn (Insert KB)",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook Feedback": {
+            "main": [
+                [
+                    {
+                        "node": "Get Interaction Transcript",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Interaction Transcript": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Success Patterns",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Success Patterns": {
+            "main": [
+                [
+                    {
+                        "node": "Format Insights",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Format Insights": {
+            "main": [
+                [
+                    {
+                        "node": "Embed New Knowledge",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Embed New Knowledge": {
+            "main": [
+                [
+                    {
+                        "node": "Learn (Insert KB)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
