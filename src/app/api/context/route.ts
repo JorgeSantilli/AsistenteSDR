@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
         // 2. Búsqueda Vectorial en Supabase
         // Llama a la función RPC 'match_documents' que realiza la similitud de coseno
-        const { data: documents, error: searchError } = await supabase.rpc('match_documents', {
+        const { data: documents, error: searchError } = await supabase.rpc('match_documents' as any, {
             query_embedding: embedding,
             match_threshold: 0.7, // Umbral de similitud (ajustable)
             match_count: 5,        // Número de fragmentos a recuperar

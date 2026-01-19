@@ -119,9 +119,12 @@ export default function LiveAssistantPage() {
 
         // Initialize audio capture
         try {
-            audioCapture.current = new AudioCapture((text, isFinal, source) => {
-                handleTranscriptUpdate(text, isFinal, source)
-            })
+            audioCapture.current = new AudioCapture(
+                (text, isFinal, source) => {
+                    handleTranscriptUpdate(text, isFinal, source)
+                },
+                process.env.NEXT_PUBLIC_DEEPGRAM_KEY // Pass key if available
+            )
 
             await audioCapture.current.startCapture(config.source)
             setIsCapturing(true)

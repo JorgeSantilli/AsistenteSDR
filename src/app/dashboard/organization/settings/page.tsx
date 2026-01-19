@@ -64,7 +64,7 @@ export default function OrgSettingsPage() {
                             default_tone: 'Profesional',
                             ai_model: 'gpt-4o',
                             language: 'Spanish',
-                            ...(org.settings || {})
+                            ...(org.settings as any || {})
                         }
                     })
                 }
