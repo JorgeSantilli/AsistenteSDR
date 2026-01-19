@@ -3,31 +3,37 @@ import { OpenAI } from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
 
+// Forzamos que la ruta sea dinámica para que Next.js no intente evaluarla durante el build estático
+export const dynamic = 'force-dynamic'
+
 /**
  * Endpoint POST para obtener sugerencias de IA basadas en el contexto de la llamada actual.
  * Realiza una búsqueda semántica (RAG) en Supabase y genera una respuesta optimizada para el SDR.
+ * Todo el código de inicialización se ha movido dentro del handler para evitar errores
+ * de "supabaseUrl is required" durante la fase de compilación de Vercel.
  * 
  * @param req - Objeto NextRequest con { transcript, organization_id } en el body.
  * @returns NextResponse con la sugerencia de IA y los documentos de contexto utilizados.
  */
 export async function POST(req: NextRequest) {
     try {
-        // 1. Obtener variables de entorno (dentro del handler para evitar errores en build time)
+        // 1. Lectura de variables de entorno DENTRO del handler (Build-Safe)
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
         const openaiKey = process.env.OPENAI_API_KEY
 
+        // 2. Validación de configuración en tiempo de ejecución
         if (!supabaseUrl || !supabaseAnonKey) {
-            console.error("Supabase environment variables are missing")
-            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+            console.error("[Build-Safe Check]: Supabase URL o Anon Key no configurados.")
+            return NextResponse.json({ error: 'Configuración de base de datos incompleta' }, { status: 500 })
         }
 
         if (!openaiKey) {
-            console.error("OPENAI_API_KEY is not set")
-            return NextResponse.json({ error: 'OpenAI configuration error' }, { status: 500 })
+            console.error("[Build-Safe Check]: OpenAI API Key no configurada.")
+            return NextResponse.json({ error: 'Configuración de IA incompleta' }, { status: 500 })
         }
 
-        // 2. Inicializar clientes dentro del handler
+        // 3. Inicialización diferida de clientes
         const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
         const openai = new OpenAI({ apiKey: openaiKey })
 
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing transcript or organization_id' }, { status: 400 })
         }
 
-        // 3. Generar Embedding para el fragmento de transcripción (query)
+        // 4. Generar Embedding para el fragmento de transcripción (query)
         const embeddingResponse = await openai.embeddings.create({
             model: 'text-embedding-3-small',
             input: transcript,
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
 
         const embedding = embeddingResponse.data[0].embedding
 
-        // 4. Búsqueda Vectorial en Supabase
+        // 5. Búsqueda Vectorial en Supabase
         const { data: documents, error: searchError } = await supabase.rpc('match_documents' as any, {
             query_embedding: embedding,
             match_threshold: 0.7,
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: searchError.message }, { status: 500 })
         }
 
-        // 5. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
+        // 6. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
         const contextText = (documents as any[])?.map((d: any) => d.content).join("\n---\n") || ""
 
         const completion = await openai.chat.completions.create({
@@ -96,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error'
-        console.error("API Error:", message)
+        console.error("API Context Error:", message)
         return NextResponse.json({ error: 'Internal Server Error', details: message }, { status: 500 })
     }
 }
