@@ -1,19 +1,19 @@
 import { createClient } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
 /**
  * Endpoint PATCH para actualizar los datos de una interacción específica.
  * Actualmente se utiliza para actualizar las notas post-llamada.
  * 
- * @param request - Objeto Request con { notes } en el body.
- * @param params - { id: string } ID de la interacción a actualizar.
+ * @param request - Objeto NextRequest con { notes } en el body.
+ * @param context - Contexto con params que contiene el ID de la interacción.
  * @returns NextResponse con el resultado de la actualización.
  */
 export async function PATCH(
-    request: Request,
-    props: { params: Promise<{ id: string }> }
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> }
 ) {
-    const params = await props.params;
+    const params = await context.params;
     try {
         const { notes } = await request.json()
         const supabase = await createClient()
