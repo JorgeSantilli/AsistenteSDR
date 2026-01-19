@@ -117,6 +117,17 @@ export default function LiveAssistantPage() {
             timestamp: new Date()
         }] as any)
 
+        // Check for Deepgram Key (Client Transcription)
+        const hasDeepgram = !!process.env.NEXT_PUBLIC_DEEPGRAM_KEY
+        if (config.source !== 'microphone' && !hasDeepgram) {
+            setTranscript(prev => [...prev, {
+                id: 'warn-dg',
+                role: 'system',
+                content: '⚠️ Deepgram Key no detectada. Reinicia el servidor (npm run dev) para habilitar transcripción del cliente.',
+                timestamp: new Date()
+            }] as any)
+        }
+
         // Initialize audio capture
         try {
             audioCapture.current = new AudioCapture(
