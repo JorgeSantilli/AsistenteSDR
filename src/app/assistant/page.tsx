@@ -6,7 +6,7 @@ import { Mic, MicOff, Square, Play, Send, Settings, ThumbsUp, ThumbsDown, User, 
 // Mock types
 type Message = {
     id: string
-    role: 'user' | 'assistant' | 'lead' | 'sdr'
+    role: 'user' | 'assistant' | 'lead' | 'sdr' | 'system'
     content: string
     timestamp: Date
 }
@@ -19,15 +19,40 @@ type Suggestion = {
     context_used?: { content: string; metadata: any }[]
 }
 
+import { createClient } from '@/lib/supabase-browser'
+
 export default function LiveAssistant() {
     const [isLive, setIsLive] = useState(false)
     const [transcript, setTranscript] = useState<Message[]>([])
     const [suggestions, setSuggestions] = useState<Suggestion[]>([])
     const [inputText, setInputText] = useState('')
-    const [orgId, setOrgId] = useState('00000000-0000-0000-0000-000000000000') // Default/Placeholder
+    const [orgId, setOrgId] = useState<string>('')
     const [isLoading, setIsLoading] = useState(false)
+    const [userId, setUserId] = useState<string>('')
 
     const transcriptEndRef = useRef<HTMLDivElement>(null)
+    const supabase = createClient()
+
+    // Load User & Org
+    useEffect(() => {
+        const loadUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                setUserId(user.id)
+                // Ideally we fetch the Org ID from a 'users' table or metadata
+                // For prototype, we will fetch the first organization found or create one
+                const { data: orgs } = await supabase.from('organizations').select('id').limit(1)
+                if (orgs && orgs.length > 0) {
+                    setOrgId(orgs[0].id)
+                } else {
+                    // Create a default one if none exists (Auto-onboarding)
+                    const { data: newOrg } = await supabase.from('organizations').insert({ name: 'My First Org' }).select().single()
+                    if (newOrg) setOrgId(newOrg.id)
+                }
+            }
+        }
+        loadUser()
+    }, [])
 
     // Auto-scroll transcript
     useEffect(() => {
@@ -141,15 +166,15 @@ export default function LiveAssistant() {
                     {transcript.map((msg) => (
                         <div key={msg.id} className={`flex gap-4 ${msg.role === 'sdr' ? 'flex-row-reverse' : ''}`}>
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'lead' ? 'bg-blue-500/10 text-blue-400' :
-                                    msg.role === 'system' ? 'bg-zinc-800 text-zinc-400' :
-                                        'bg-purple-500/10 text-purple-400'
+                                msg.role === 'system' ? 'bg-zinc-800 text-zinc-400' :
+                                    'bg-purple-500/10 text-purple-400'
                                 }`}>
                                 {msg.role === 'lead' ? <User size={18} /> : msg.role === 'system' ? <AlertCircle size={18} /> : <User size={18} />}
                             </div>
 
                             <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${msg.role === 'lead' ? 'bg-zinc-900 border border-zinc-800 text-zinc-200' :
-                                    msg.role === 'system' ? 'text-xs italic text-zinc-500 w-full text-center' :
-                                        'bg-purple-600/20 border border-purple-500/30 text-purple-100'
+                                msg.role === 'system' ? 'text-xs italic text-zinc-500 w-full text-center' :
+                                    'bg-purple-600/20 border border-purple-500/30 text-purple-100'
                                 }`}>
                                 {msg.role !== 'system' && (
                                     <div className="text-xs font-medium opacity-50 mb-1 mb-2">
