@@ -10,22 +10,38 @@ const openaiKey = process.env.OPENAI_API_KEY
 const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 const openai = new OpenAI({ apiKey: openaiKey })
 
-const SEED_DATA = [
+const INITIAL_KNOWLEDGE = [
     {
-        content: "If a prospect says 'It's too expensive', respond with: 'I understand budget is a concern. However, most of our customers see a 3x ROI within the first month by automating lead qualification. Can we look at your current cost of manual SDR work?'",
-        tags: ["objection", "pricing", "roi"]
+        content: `Pxsol es una plataforma "all-in-one" de tecnología hotelera diseñada para potenciar las ventas directas y optimizar la gestión operativa. Su propuesta de valor es "Tecnología para potenciar tu hotel", enfocándose en disminuir comisiones pagadas a OTAs, centralizar la distribución y unificar la gestión.`,
+        tags: ['resumen', 'propuesta_valor']
     },
     {
-        content: "Our main competitor 'SalesForceMax' lacks real-time voice analysis. Unlike them, we provide live objection handling during the call, not just post-call analytics. This increases conversion rates by 25%.",
-        tags: ["competitor", "differentiation", "tech"]
+        content: `Motor de Reservas de Pxsol: Permite obtener reservas directas libres de comisiones. Soporta múltiples idiomas y monedas, y mantiene la disponibilidad sincronizada en tiempo real para evitar overbooking.`,
+        tags: ['producto', 'motor_reservas', 'beneficios']
     },
     {
-        content: "Value Proposition: We automate the tedious parts of being an SDR. Our AI listens, takes notes, and suggests answers, allowing you to focus on building a relationship with the buyer.",
-        tags: ["value_prop", "pitch"]
+        content: `PMS (Property Management System) de Pxsol: Gestión integral del hotel desde un solo panel. Permite el control total de estancias, huéspedes, facturación y operaciones diarias.`,
+        tags: ['producto', 'pms', 'operaciones']
     },
     {
-        content: "If they ask about integration: 'Yes, we integrate natively with Salesforce, HubSpot, and Pipedrive. It takes 5 minutes to set up.'",
-        tags: ["technical", "integration"]
+        content: `Channel Manager de Pxsol: Distribución centralizada que sincroniza el inventario con las principales agencias de viajes online (Booking, Expedia, etc.). Su principal beneficio es evitar la sobreventa (overbooking) y ahorrar tiempo de gestión manual.`,
+        tags: ['producto', 'channel_manager', 'distribucion']
+    },
+    {
+        content: `Pxsol Ads: Servicio de publicidad automatizada en Google (Google Hotel Ads) diseñado para atraer tráfico directo al motor de reservas con un alto retorno de inversión (ROI), compitiendo directamente con las OTAs en los resultados de búsqueda.`,
+        tags: ['producto', 'marketing', 'pxsol_ads']
+    },
+    {
+        content: `Integraciones y Pagos: Pxsol se integra con pasarelas de pago como Stripe y Payway para el cobro automático. También se integra con sistemas de facturación (como GNS en Uruguay) y herramientas de Revenue Management como Turbosuite.`,
+        tags: ['integraciones', 'pagos', 'tecnico']
+    },
+    {
+        content: ` CRM Hotelero: Herramienta para el seguimiento de consultas y automatización de procesos de venta. Ayuda en la fidelización de huéspedes mediante marketing personalizado y bases de datos centralizadas.`,
+        tags: ['producto', 'crm', 'ventas']
+    },
+    {
+        content: ` Beneficios clave para el Hotelero: 1) Ahorro: Cero comisiones en reservas directas. 2) Seguridad: Eliminación del riesgo de sobreventa. 3) Eficiencia: Todo en una sola plataforma. 4) Visibilidad: Presencia automática en Google.`,
+        tags: ['beneficios', 'argumentario_ventas']
     }
 ]
 
@@ -53,7 +69,7 @@ export async function GET(req: Request) {
 
         const results = []
 
-        for (const item of SEED_DATA) {
+        for (const item of INITIAL_KNOWLEDGE) {
             // Generate Embedding
             const embeddingResponse = await openai.embeddings.create({
                 model: 'text-embedding-3-small',

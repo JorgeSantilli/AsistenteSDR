@@ -47,20 +47,27 @@ export async function POST(req: Request) {
 
         // 3. Generate "Assistant" Response (Objection Handling)
         // We feed the retrieved documents as context to the LLM
-        const contextText = documents?.map((d: any) => d.content).join("\n---\n") || ""
+        const contextText = (documents as any[])?.map((d: any) => d.content).join("\n---\n") || ""
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "system",
-                    content: `You are an expert Sales Development Representative assistant. 
-          Your goal is to help the user handle objections and steer the conversation to a meeting booking.
-          Use the following CONTEXT from the company's knowledge base to answer. 
-          If the context doesn't help, use general best practices but prioritize the context.
+                    content: `You are an elite Sales Engineer for Pxsol, an "all-in-one" hotel technology platform.
           
-          CONTEXT:
-          ${contextText}`
+          YOUR GOAL: Provide a short, punchy, and winning response to the prospect's objection or query.
+          
+          GUIDELINES:
+          1. USE THE CONTEXT: Strictly rely on the specific Pxsol features, integrations (Stripe, Payway, Turbosuite), and benefits (0% commissions) found in the CONTEXT below.
+          2. BE CONCISE: The SDR is on a live call. Keep the suggestion under 2 sentences if possible.
+          3. TONE: Professional, confident, and value-driven.
+          4. FORMAT: Direct speech. Don't say "You should say...", just give the line.
+
+          CONTEXT FROM KNOWLEDGE BASE:
+          ${contextText}
+          
+          If the context is empty or irrelevant, fall back to general SaaS sales best practices but mention "our all-in-one platform".`
                 },
                 { role: "user", content: `Prospect says: "${transcript}"` }
             ],
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             suggestion,
-            context_used: documents?.map((d: any) => ({ content: d.content, metadata: d.metadata }))
+            context_used: (documents as any[])?.map((d: any) => ({ content: d.content, metadata: d.metadata }))
         })
 
     } catch (error) {
