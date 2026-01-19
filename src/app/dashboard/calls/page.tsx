@@ -1,0 +1,406 @@
+'use client'
+
+import React, { useState, useEffect, useRef } from 'react'
+import {
+    Search,
+    Filter,
+    Calendar,
+    Clock,
+    Phone,
+    FileText,
+    Download,
+    Play,
+    Pause,
+    Volume2,
+    ChevronDown,
+    ChevronRight,
+    AlertCircle,
+    CheckCircle2,
+    XCircle,
+    Save
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase-browser'
+import { exportTranscriptAsTXT, exportTranscriptAsPDF, downloadAudio } from '@/lib/export-utils'
+
+type Interaction = {
+    id: string
+    organization_id: string
+    transcript_full: string | null
+    status: 'SUCCESS' | 'FAILURE' | 'NEUTRAL' | null
+    created_at: string
+    audio_url: string | null
+    notes: string | null
+    duration_seconds: number | null
+}
+
+export default function CallsPage() {
+    const [interactions, setInteractions] = useState<Interaction[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [filterStatus, setFilterStatus] = useState<string>('all')
+    const [expandedCall, setExpandedCall] = useState<string | null>(null)
+    const [playingAudio, setPlayingAudio] = useState<string | null>(null)
+    const [notes, setNotes] = useState<Record<string, string>>({})
+    const [savingNotes, setSavingNotes] = useState<string | null>(null)
+    const audioRefs = useRef<Record<string, HTMLAudioElement>>({})
+    const supabase = createClient()
+
+    useEffect(() => {
+        loadInteractions()
+    }, [])
+
+    const loadInteractions = async () => {
+        setIsLoading(true)
+        try {
+            // Fetch interactions with deal info
+            const { data, error } = await supabase
+                .from('interactions')
+                .select(`
+                    *,
+                    deals (
+                        title,
+                        company,
+                        contact_name
+                    )
+                `)
+                .order('created_at', { ascending: false })
+
+            if (error) throw error
+
+            const typedData = (data || []) as (Interaction & { deals: any })[]
+            setInteractions(typedData)
+
+            // Initialize notes state
+            const notesMap: Record<string, string> = {}
+            typedData.forEach(interaction => {
+                notesMap[interaction.id] = interaction.notes || ''
+            })
+            setNotes(notesMap)
+        } catch (error) {
+            console.error('Error loading interactions:', error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const saveNotes = async (interactionId: string) => {
+        setSavingNotes(interactionId)
+        try {
+            await fetch(`/api/interactions/${interactionId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notes: notes[interactionId] })
+            })
+        } catch (error) {
+            console.error('Error saving notes:', error)
+        } finally {
+            setSavingNotes(null)
+        }
+    }
+
+    const toggleAudio = (interactionId: string, audioUrl: string) => {
+        const audio = audioRefs.current[interactionId]
+
+        if (!audio) {
+            const newAudio = new Audio(audioUrl)
+            audioRefs.current[interactionId] = newAudio
+
+            newAudio.onended = () => setPlayingAudio(null)
+            newAudio.play()
+            setPlayingAudio(interactionId)
+        } else {
+            if (playingAudio === interactionId) {
+                audio.pause()
+                setPlayingAudio(null)
+            } else {
+                audio.play()
+                setPlayingAudio(interactionId)
+            }
+        }
+    }
+
+    const filteredInteractions = interactions.filter(interaction => {
+        const matchesSearch = interaction.transcript_full
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())
+
+        const matchesStatus =
+            filterStatus === 'all' ||
+            interaction.status?.toLowerCase() === filterStatus.toLowerCase()
+
+        return matchesSearch && matchesStatus
+    })
+
+    const getStatusBadge = (status: string | null) => {
+        const badges: Record<string, { color: string; icon: any; label: string }> = {
+            'SUCCESS': {
+                color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                icon: CheckCircle2,
+                label: 'Exitosa'
+            },
+            'FAILURE': {
+                color: 'bg-red-100 text-red-700 border-red-200',
+                icon: XCircle,
+                label: 'Fallida'
+            },
+            'NEUTRAL': {
+                color: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+                icon: AlertCircle,
+                label: 'Neutral'
+            }
+        }
+
+        const badge = badges[status || 'NEUTRAL'] || badges['NEUTRAL']
+        const Icon = badge.icon
+
+        return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.color}`}>
+                <Icon size={14} />
+                {badge.label}
+            </span>
+        )
+    }
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString)
+        return date.toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    }
+
+    const formatDuration = (seconds: number | null) => {
+        if (!seconds) return 'N/A'
+        const mins = Math.floor(seconds / 60)
+        const secs = seconds % 60
+        return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
+    const toggleExpand = (id: string) => {
+        setExpandedCall(expandedCall === id ? null : id)
+    }
+
+    return (
+        <div className="flex flex-col h-full bg-zinc-50">
+            {/* Header */}
+            <div className="bg-white border-b border-zinc-200 px-6 py-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-zinc-900">Historial de Llamadas</h1>
+                        <p className="text-sm text-zinc-500 mt-1">
+                            {filteredInteractions.length} llamadas registradas
+                        </p>
+                    </div>
+                    <button
+                        onClick={loadInteractions}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
+                    >
+                        <Download size={18} />
+                        Actualizar
+                    </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar en transcripciones..."
+                            className="w-full bg-zinc-50 border border-zinc-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                        />
+                    </div>
+
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    >
+                        <option value="all">Todos los estados</option>
+                        <option value="success">Exitosas</option>
+                        <option value="failure">Fallidas</option>
+                        <option value="neutral">Neutrales</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Calls List */}
+            <div className="flex-1 overflow-auto p-6">
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <div className="flex items-center gap-2 text-zinc-500">
+                            <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                            Cargando llamadas...
+                        </div>
+                    </div>
+                ) : filteredInteractions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+                        <Phone size={48} className="mb-4 opacity-20" />
+                        <p className="font-medium">No se encontraron llamadas</p>
+                        <p className="text-sm">Intenta ajustar los filtros o realiza tu primera llamada</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredInteractions.map((interaction) => (
+                            <div
+                                key={interaction.id}
+                                className="bg-white rounded-xl border border-zinc-200 overflow-hidden hover:shadow-md transition-shadow"
+                            >
+                                {/* Call Header */}
+                                <div
+                                    className="p-4 cursor-pointer hover:bg-zinc-50 transition-colors"
+                                    onClick={() => toggleExpand(interaction.id)}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4 flex-1">
+                                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                                                <Phone size={20} />
+                                            </div>
+
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <h3 className="font-semibold text-zinc-900">
+                                                        {(interaction as any).deals?.title || 'Sesión sin Vincular'}
+                                                    </h3>
+                                                    <p className="text-xs text-zinc-500">
+                                                        {(interaction as any).deals?.company} {(interaction as any).deals?.contact_name ? `• ${(interaction as any).deals.contact_name}` : ''}
+                                                    </p>
+                                                    {getStatusBadge(interaction.status)}
+                                                </div>
+                                                <div className="flex items-center gap-4 text-sm text-zinc-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar size={14} />
+                                                        {formatDate(interaction.created_at)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock size={14} />
+                                                        {formatDuration(interaction.duration_seconds)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <FileText size={14} />
+                                                        {interaction.transcript_full?.split(' ').length || 0} palabras
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {expandedCall === interaction.id ? (
+                                                <ChevronDown className="text-zinc-400" size={20} />
+                                            ) : (
+                                                <ChevronRight className="text-zinc-400" size={20} />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Expanded Content */}
+                                {expandedCall === interaction.id && (
+                                    <div className="border-t border-zinc-200 bg-zinc-50">
+                                        <div className="p-6 space-y-6">
+                                            {/* Audio Player */}
+                                            {interaction.audio_url && (
+                                                <div className="bg-white rounded-lg border border-zinc-200 p-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <button
+                                                            onClick={() => toggleAudio(interaction.id, interaction.audio_url!)}
+                                                            className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 rounded-full flex items-center justify-center text-white transition-colors"
+                                                        >
+                                                            {playingAudio === interaction.id ? (
+                                                                <Pause size={18} />
+                                                            ) : (
+                                                                <Play size={18} />
+                                                            )}
+                                                        </button>
+                                                        <div className="flex-1">
+                                                            <p className="text-sm text-zinc-600 mb-1">Grabación de la llamada</p>
+                                                            <p className="text-xs text-zinc-400">
+                                                                Duración: {formatDuration(interaction.duration_seconds)}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => interaction.audio_url && downloadAudio(interaction.audio_url, interaction.created_at)}
+                                                            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+                                                        >
+                                                            <Download size={18} className="text-zinc-600" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Transcript */}
+                                            <div>
+                                                <h4 className="font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                                                    <FileText size={18} />
+                                                    Transcripción Completa
+                                                </h4>
+                                                <div className="bg-white rounded-lg border border-zinc-200 p-4 max-h-64 overflow-y-auto">
+                                                    <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+                                                        {interaction.transcript_full || 'No hay transcripción disponible'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Notes Section */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <h4 className="font-semibold text-zinc-900">Notas y Resumen</h4>
+                                                    <button
+                                                        onClick={() => saveNotes(interaction.id)}
+                                                        disabled={savingNotes === interaction.id}
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                    >
+                                                        <Save size={14} />
+                                                        {savingNotes === interaction.id ? 'Guardando...' : 'Guardar Notas'}
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    value={notes[interaction.id] || ''}
+                                                    onChange={(e) => setNotes({ ...notes, [interaction.id]: e.target.value })}
+                                                    placeholder="Agregar notas sobre esta llamada..."
+                                                    className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 min-h-[100px]"
+                                                />
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-3 pt-4 border-t border-zinc-200">
+                                                <button
+                                                    onClick={() => exportTranscriptAsTXT(
+                                                        interaction.transcript_full || '',
+                                                        interaction.created_at,
+                                                        interaction.status || undefined
+                                                    )}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors text-sm font-medium"
+                                                >
+                                                    <Download size={16} />
+                                                    Exportar TXT
+                                                </button>
+                                                <button
+                                                    onClick={() => exportTranscriptAsPDF(
+                                                        interaction.transcript_full || '',
+                                                        interaction.created_at,
+                                                        interaction.status || undefined,
+                                                        notes[interaction.id]
+                                                    )}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors text-sm font-medium"
+                                                >
+                                                    <FileText size={16} />
+                                                    Exportar PDF
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}

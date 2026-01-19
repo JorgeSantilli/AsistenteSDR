@@ -1,45 +1,83 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import { Database } from '@/lib/database.types'
+import OpenAI from 'openai'
 
-// Note: Using Service Role Key here might be safer for "system" level updates if we bypass RLS,
-// but for now we stick to Anon key assuming public policies or authenticated user.
-// In a real scenario, this endpoint should be protected by Authentication Middleware.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+})
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json()
-        const { interaction_id, status, full_transcript, organization_id } = body
+        const { interaction_id } = await req.json()
+        if (!interaction_id) return NextResponse.json({ error: 'Missing interaction_id' }, { status: 400 })
 
-        if (!full_transcript || !organization_id) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-        }
+        const supabase = await createClient() // Server client with auth context
 
-        // 1. Log the Interaction
-        const { data, error } = await supabase
+        // 1. Get Interaction
+        const { data: interaction, error: intError } = await supabase
             .from('interactions')
-            .insert({
-                organization_id,
-                transcript_full: full_transcript,
-                status: status || 'NEUTRAL', // SUCCESS, FAILURE, NEUTRAL
-                // id field is auto-generated usually, but if interaction_id provided we can use it?
-                // Let's rely on DB generation or use provided UUID if linking sessions.
-                ...(interaction_id ? { id: interaction_id } : {})
-            })
-            .select()
+            .select('*')
+            .eq('id', interaction_id)
+            .single()
 
-        if (error) {
-            console.error("Supabase Write Error:", error)
-            return NextResponse.json({ error: error.message }, { status: 500 })
+        if (intError || !interaction) throw new Error('Interaction not found')
+
+        // 2. Analyze with OpenAI (Extract Learning Data)
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert sales trainer. Analyze the following transcript. Identify ONE or TWO key objection handling moments where the SDR performed well. Output them as a purely JSON array of objects with 'question' (the objection) and 'answer' (the refined response) keys. Do NOT output markdown code blocks, just the JSON array."
+                },
+                {
+                    role: "user",
+                    content: `Transcript:\n\n${interaction.transcript_full}`
+                }
+            ],
+            temperature: 0.3
+        })
+
+        const content = completion.choices[0].message.content
+        let insights = []
+        try {
+            // Cleanup potential markdown fences
+            const jsonStr = content?.replace(/```json/g, '').replace(/```/g, '') || '[]'
+            insights = JSON.parse(jsonStr)
+        } catch (e) {
+            console.error("Failed to parse LLM output", content)
+            return NextResponse.json({ error: 'Failed to analyze transcript' }, { status: 500 })
         }
 
-        return NextResponse.json({ success: true, id: data[0].id })
+        // 3. Embed and Insert
+        const learningResults = []
+        for (const insight of insights) {
+            const kbContent = `Objection: ${insight.question}\nBest Practice Response: ${insight.answer}`
 
-    } catch (error) {
-        console.error("API Error:", error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+            const embeddingResponse = await openai.embeddings.create({
+                model: 'text-embedding-3-small',
+                input: kbContent,
+            })
+            const embedding = embeddingResponse.data[0].embedding
+
+            const { data: kbData, error: kbError } = await supabase.from('knowledge_base').insert({
+                organization_id: interaction.organization_id,
+                content: kbContent,
+                embedding: embedding as any,
+                metadata: {
+                    source: 'dynamic_learning',
+                    trigger: 'success_feedback',
+                    origin_interaction: interaction.id
+                }
+            }).select()
+
+            if (!kbError && kbData) learningResults.push(kbData[0])
+        }
+
+        return NextResponse.json({ success: true, learned_items: learningResults })
+
+    } catch (error: any) {
+        console.error("Feedback Loop Error:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
     }
 }

@@ -41,6 +41,9 @@ export type Database = {
                     organization_id: string
                     status: string | null
                     transcript_full: string | null
+                    audio_url: string | null
+                    notes: string | null
+                    duration_seconds: number | null
                 }
                 Insert: {
                     created_at?: string | null
@@ -48,6 +51,9 @@ export type Database = {
                     organization_id: string
                     status?: string | null
                     transcript_full?: string | null
+                    audio_url?: string | null
+                    notes?: string | null
+                    duration_seconds?: number | null
                 }
                 Update: {
                     created_at?: string | null
@@ -55,6 +61,9 @@ export type Database = {
                     organization_id?: string
                     status?: string | null
                     transcript_full?: string | null
+                    audio_url?: string | null
+                    notes?: string | null
+                    duration_seconds?: number | null
                 }
                 Relationships: [
                     {
@@ -121,6 +130,113 @@ export type Database = {
                     settings?: Json | null
                 }
                 Relationships: []
+            }
+            profiles: {
+                Row: {
+                    avatar_url: string | null
+                    created_at: string | null
+                    full_name: string | null
+                    id: string
+                    job_title: string | null
+                    organization_id: string | null
+                    preferences: Json | null
+                    updated_at: string | null
+                }
+                Insert: {
+                    avatar_url?: string | null
+                    created_at?: string | null
+                    full_name?: string | null
+                    id: string
+                    job_title?: string | null
+                    organization_id?: string | null
+                    preferences?: Json | null
+                    updated_at?: string | null
+                }
+                Update: {
+                    avatar_url?: string | null
+                    created_at?: string | null
+                    full_name?: string | null
+                    id?: string
+                    job_title?: string | null
+                    organization_id?: string | null
+                    preferences?: Json | null
+                    updated_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "profiles_id_fkey"
+                        columns: ["id"]
+                        isOneToOne: true
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "profiles_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            deals: {
+                Row: {
+                    company: string | null
+                    contact_email: string | null
+                    contact_name: string | null
+                    contact_phone: string | null
+                    created_at: string | null
+                    id: string
+                    last_activity: string | null
+                    organization_id: string | null
+                    probability: number | null
+                    stage: string | null
+                    status: string | null
+                    title: string | null
+                    tracking_config: Json | null
+                    value: number | null
+                }
+                Insert: {
+                    company?: string | null
+                    contact_email?: string | null
+                    contact_name?: string | null
+                    contact_phone?: string | null
+                    created_at?: string | null
+                    id?: string
+                    last_activity?: string | null
+                    organization_id?: string | null
+                    probability?: number | null
+                    stage?: string | null
+                    status?: string | null
+                    title?: string | null
+                    tracking_config?: Json | null
+                    value?: number | null
+                }
+                Update: {
+                    company?: string | null
+                    contact_email?: string | null
+                    contact_name?: string | null
+                    contact_phone?: string | null
+                    created_at?: string | null
+                    id?: string
+                    last_activity?: string | null
+                    organization_id?: string | null
+                    probability?: number | null
+                    stage?: string | null
+                    status?: string | null
+                    title?: string | null
+                    tracking_config?: Json | null
+                    value?: number | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "deals_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
         }
         Views: {

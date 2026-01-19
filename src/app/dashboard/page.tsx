@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Header from '@/components/layout/Header'
 import {
     Filter,
@@ -9,43 +9,73 @@ import {
     MessageSquare,
     Phone,
     Mail,
-    Calendar,
-    AlertTriangle,
-    ArrowRight,
     MonitorPlay,
-    CheckCircle2,
     XCircle,
-    Clock,
     List,
-    LayoutGrid
+    LayoutGrid,
+    RefreshCw
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase-browser'
+import NewDealModal from '@/components/dashboard/NewDealModal'
 
-// Mock Data matching the screenshot style
-const PIPELINE_DATA = [
-    { id: 1, name: 'BitForge', product: 'BitForge 1.0', amount: '$56,000', closeDate: 'Feb 27, 2026', forecast: 'Commit', stage: 'Discovery', score: 19, warnings: 3, contacts: 1, owner: 'Alex Castillo', activities: [1, 1, 0, 2, 1, 0, 1], nextCall: '-' },
-    { id: 2, name: 'ApexMind', product: 'ApexMind 1.0', amount: '$47,000', closeDate: 'Mar 9, 2026', forecast: 'Commit', stage: 'Qualification', score: 34, warnings: 0, contacts: 3, owner: 'Alex Castillo', activities: [0, 2, 1, 0, 3, 0, 0], nextCall: 'In 3 days' },
-    { id: 3, name: 'Exempla', product: 'Exempla 1.0', amount: '$53,000', closeDate: 'Feb 24, 2026', forecast: 'Commit', stage: 'Presentation', score: 76, warnings: 0, contacts: 2, owner: 'Alex Castillo', activities: [0, 0, 1, 1, 0, 2, 0], nextCall: 'Tomorrow' },
-    { id: 4, name: 'Credax', product: 'Credax 1.0', amount: '$75,000', closeDate: 'Feb 26, 2026', forecast: 'Best Case', stage: 'Alignment', score: 84, warnings: 0, contacts: 3, owner: 'Alex Castillo', activities: [2, 1, 2, 0, 1, 1, 0], nextCall: 'Tomorrow' },
-    { id: 5, name: 'Novus', product: 'Novus 2.0', amount: '$120,000', closeDate: 'Apr 15, 2026', forecast: 'Pipeline', stage: 'Discovery', score: 45, warnings: 1, contacts: 4, owner: 'Sarah Jones', activities: [1, 0, 0, 1, 0, 0, 0], nextCall: 'In 5 days' },
-]
+// Types
+type Deal = {
+    id: string
+    title: string
+    company: string
+    value: number
+    stage: string
+    probability: number
+    last_activity: string
+    contact_name: string
+    contact_email: string
+    status: string
+    created_at?: string
+}
 
-export default function PipelinePage() {
-    const [selectedDeal, setSelectedDeal] = useState<number | null>(null)
+export default function DashboardPage() {
+    const [viewMode, setViewMode] = useState<'list' | 'board'>('list')
+    const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [deals, setDeals] = useState<Deal[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    const supabase = createClient()
+
+    const fetchDeals = async () => {
+        setIsLoading(true)
+        const { data } = await supabase
+            .from('deals')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+        if (data) setDeals(data as any)
+        setIsLoading(false)
+    }
+
+    useEffect(() => {
+        fetchDeals()
+    }, [])
+
+    const totalPipeline = deals.reduce((acc, deal) => acc + (deal.value || 0), 0)
+    const activeDeals = deals.length
 
     return (
         <>
-            <Header title="Pipeline" />
+            <Header title="Pipeline" onNewClick={() => setIsModalOpen(true)} />
 
             <main className="flex-1 overflow-x-hidden overflow-y-auto bg-zinc-50 p-6">
+
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                     {[
-                        { label: 'Open', value: '$1.1M', count: 40, sub: '$727.8K (30)', color: 'border-l-zinc-300' },
-                        { label: 'Commit', value: '$231K', count: 4, sub: '▲ $56K (1)', active: true, color: 'border-l-indigo-500' },
-                        { label: 'Most Likely', value: '$120.5K', count: 5, sub: '▲ $94K (4)', color: 'border-l-zinc-300' },
-                        { label: 'Best Case', value: '$356.8K', count: 15, sub: '▲ $294.8K (13)', color: 'border-l-zinc-300' },
-                        { label: 'Closed Won', value: '$245.5K', count: 9, color: 'border-l-emerald-500' },
+                        { label: 'Total Pipeline', value: `$${totalPipeline.toLocaleString()}`, count: activeDeals, sub: 'Active Deals', color: 'border-l-zinc-300' },
+                        { label: 'Avg Deal Size', value: `$${activeDeals > 0 ? Math.round(totalPipeline / activeDeals).toLocaleString() : 0}`, count: activeDeals, sub: 'Per Deal', active: true, color: 'border-l-indigo-500' },
+                        { label: 'Win Rate', value: '0%', count: 0, sub: 'Last 30 days', color: 'border-l-zinc-300' },
+                        { label: 'Tasks', value: '0', count: 0, sub: 'Overdue', color: 'border-l-red-500' },
+                        { label: 'Closed Won', value: '$0', count: 0, color: 'border-l-emerald-500' },
                     ].map((kpi, idx) => (
                         <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border border-zinc-200 ${kpi.active ? 'ring-2 ring-indigo-500/20' : ''} ${kpi.color} border-l-4`}>
                             <p className={`text-sm font-medium ${kpi.active ? 'text-indigo-600' : 'text-zinc-500'}`}>{kpi.label}</p>
@@ -62,7 +92,7 @@ export default function PipelinePage() {
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3 overflow-x-auto pb-2">
                         <button className="flex items-center gap-2 bg-white border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-zinc-50 shadow-sm">
-                            <Filter size={14} /> Filtros
+                            <Filter size={14} /> Filtrost
                         </button>
                         <div className="h-6 w-px bg-zinc-300" />
                         {['Closing this quarter', 'My Accounts', 'Needs Attention'].map(filter => (
@@ -70,40 +100,63 @@ export default function PipelinePage() {
                                 {filter} <ChevronDown size={12} className="inline ml-1 opacity-50" />
                             </button>
                         ))}
-                        <button className="text-indigo-600 text-sm font-medium hover:underline">+ Add filter</button>
                     </div>
 
                     <div className="flex gap-2 bg-white p-1 rounded-lg border border-zinc-200 shadow-sm">
-                        <button className="p-1.5 bg-indigo-50 text-indigo-600 rounded">
+                        <button
+                            onClick={fetchDeals}
+                            className="p-1.5 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 rounded transition-colors"
+                            title="Refrescar"
+                        >
+                            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50'}`}
+                        >
                             <List size={18} />
                         </button>
-                        <button className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 rounded">
+                        <button
+                            onClick={() => setViewMode('board')}
+                            className={`p-1.5 rounded ${viewMode === 'board' ? 'bg-indigo-50 text-indigo-600' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50'}`}
+                        >
                             <LayoutGrid size={18} />
                         </button>
                     </div>
                 </div>
 
-                {/* Main Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+                {/* Main Content */}
+                <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden min-h-[400px]">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-zinc-50/50 border-b border-zinc-200 text-xs text-zinc-500 font-semibold uppercase tracking-wider">
                                 <th className="px-6 py-4 w-12"></th>
-                                <th className="px-6 py-4">Name</th>
-                                <th className="px-6 py-4 text-center">Score</th>
-                                <th className="px-6 py-4 text-center">Amount</th>
-                                <th className="px-6 py-4">Stage</th>
-                                <th className="px-6 py-4">Activity</th>
-                                <th className="px-6 py-4">Owner</th>
-                                <th className="px-6 py-4">Next Call</th>
+                                <th className="px-6 py-4">Oportunidad / Compañía</th>
+                                <th className="px-6 py-4 text-center">Probabilidad</th>
+                                <th className="px-6 py-4 text-center">Valor</th>
+                                <th className="px-6 py-4">Etapa</th>
+                                <th className="px-6 py-4">Contacto</th>
+                                <th className="px-6 py-4">Última Actividad</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-100">
-                            {PIPELINE_DATA.map((deal) => (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-20 text-center text-zinc-400">
+                                        Cargando oportunidades...
+                                    </td>
+                                </tr>
+                            ) : deals.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-20 text-center text-zinc-400">
+                                        No se encontraron oportunidades.
+                                    </td>
+                                </tr>
+                            ) : deals.map((deal) => (
                                 <tr
                                     key={deal.id}
-                                    onClick={() => setSelectedDeal(deal.id)}
-                                    className={`group hover:bg-indigo-50/30 transition-colors cursor-pointer ${selectedDeal === deal.id ? 'bg-indigo-50/50' : ''}`}
+                                    onClick={() => { setSelectedDeal(deal); setIsDrawerOpen(true) }}
+                                    className={`group hover:bg-indigo-50/30 transition-colors cursor-pointer ${selectedDeal?.id === deal.id ? 'bg-indigo-50/50' : ''}`}
                                 >
                                     <td className="px-6 py-4">
                                         <button className="text-zinc-300 hover:text-indigo-500">
@@ -112,60 +165,37 @@ export default function PipelinePage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">{deal.name}</span>
-                                            <span className="text-xs text-zinc-400">{deal.product}</span>
+                                            <span className="font-semibold text-zinc-900 group-hover:text-indigo-600 transition-colors">{deal.title}</span>
+                                            <span className="text-xs text-zinc-400">{deal.company}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2">
-                                            <span className={`px-2 py-1 rounded text-xs font-bold w-9 text-center ${deal.score > 70 ? 'bg-emerald-100 text-emerald-700' :
-                                                deal.score > 30 ? 'bg-zinc-100 text-zinc-700' :
-                                                    'bg-red-100 text-red-700'
+                                            <span className={`px-2 py-1 rounded text-xs font-bold w-12 text-center ${deal.probability > 70 ? 'bg-emerald-100 text-emerald-700' :
+                                                deal.probability > 30 ? 'bg-blue-100 text-blue-700' :
+                                                    'bg-zinc-100 text-zinc-600'
                                                 }`}>
-                                                {deal.score}
+                                                {deal.probability}%
                                             </span>
-                                            {deal.warnings > 0 && (
-                                                <div className="flex items-center gap-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                                    <AlertTriangle size={10} /> {deal.warnings}
-                                                </div>
-                                            )}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center font-medium text-zinc-700">
-                                        {deal.amount}
+                                        ${deal.value?.toLocaleString() || 0}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deal.stage === 'Discovery' ? 'bg-purple-100 text-purple-700' :
-                                            deal.stage === 'Presentation' ? 'bg-blue-100 text-blue-700' :
+                                            deal.stage === 'Negotiation' ? 'bg-indigo-100 text-indigo-700' :
                                                 'bg-zinc-100 text-zinc-700'
                                             }`}>
                                             {deal.stage}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-1">
-                                            {deal.activities.map((act, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`w-2 h-2 rounded-full ${act === 0 ? 'bg-zinc-200' :
-                                                        act === 1 ? 'bg-indigo-400' :
-                                                            'bg-pink-500'
-                                                        }`}
-                                                    title="Activity logged"
-                                                />
-                                            ))}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-indigo-200">
-                                                {deal.owner.split(' ').map(n => n[0]).join('')}
-                                            </div>
-                                            <span className="text-sm text-zinc-600">{deal.owner}</span>
-                                        </div>
+                                        <div className="text-sm text-zinc-600">{deal.contact_name}</div>
+                                        <div className="text-xs text-zinc-400">{deal.contact_email}</div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-zinc-500">
-                                        {deal.nextCall}
+                                        {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : '-'}
                                     </td>
                                 </tr>
                             ))}
@@ -174,96 +204,65 @@ export default function PipelinePage() {
                 </div>
             </main>
 
-            {/* Side Panel (Deal Detail Drawer) - "Gong Style" */}
+            <NewDealModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={fetchDeals}
+            />
+
+            {/* Deal Detail Drawer (Side Panel) */}
             {selectedDeal && (
-                <div className="fixed inset-y-0 right-0 w-[500px] bg-white shadow-2xl border-l border-zinc-200 transform transition-transform duration-300 overflow-y-auto z-30">
-                    <div className="p-6">
-                        <div className="flex items-center justify-between mb-6">
+                <div className={`fixed inset-y-0 right-0 w-[600px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out border-l border-zinc-200 z-50 ${isDrawerOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="h-full flex flex-col">
+                        <div className="px-6 py-4 border-b border-zinc-200 flex justify-between items-start bg-zinc-50/50">
                             <div>
-                                <h2 className="text-xl font-bold text-zinc-900">{PIPELINE_DATA.find(d => d.id === selectedDeal)?.name}</h2>
-                                <p className="text-sm text-zinc-500">Última actividad: Hace 2 horas</p>
+                                <h2 className="text-xl font-bold text-zinc-900">{selectedDeal.title}</h2>
+                                <p className="text-indigo-600 font-medium">{selectedDeal.company}</p>
                             </div>
-                            <button onClick={() => setSelectedDeal(null)} className="p-2 hover:bg-zinc-100 rounded-full text-zinc-400">
-                                <ArrowRight size={20} />
+                            <button onClick={() => setIsDrawerOpen(false)} className="text-zinc-400 hover:text-zinc-600 p-1">
+                                <XCircle size={24} />
                             </button>
                         </div>
 
-                        {/* Tabs */}
-                        <div className="flex border-b border-zinc-200 mb-6">
-                            {['Score', 'Contacts', 'Warnings', 'Activity', 'Playbook'].map((tab, i) => (
-                                <button
-                                    key={tab}
-                                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${i === 3 ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Activity Feed */}
-                        <div className="space-y-6">
-                            {/* Activity Item 1 */}
-                            <div className="relative pl-6 border-l-2 border-indigo-100">
-                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-indigo-600 border-4 border-white shadow-sm" />
-                                <div className="mb-1 flex items-center justify-between">
-                                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase">Call Brief</span>
-                                    <span className="text-xs text-zinc-400">Mon, Feb 19 • 10:37 AM</span>
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-3 gap-4 p-6 border-b border-zinc-200">
+                                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                    <p className="text-xs text-emerald-600 uppercase font-bold tracking-wide mb-1">Health Score</p>
+                                    <p className="text-2xl font-bold text-emerald-700">{selectedDeal.probability}%</p>
                                 </div>
-                                <h3 className="font-semibold text-zinc-900">Stakeholder Alignment with BitForge</h3>
-                                <div className="flex items-center gap-2 mt-2 mb-3">
-                                    <div className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-[10px] font-bold">AC</div>
-                                    <span className="text-xs text-zinc-500">Alex Castillo</span>
-                                    <span className="text-zinc-300">•</span>
-                                    <div className="w-5 h-5 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-[10px] font-bold">MA</div>
-                                    <span className="text-xs text-zinc-500">Mike Allen (BitForge)</span>
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <p className="text-xs text-blue-600 uppercase font-bold tracking-wide mb-1">Forecast</p>
+                                    <p className="text-2xl font-bold text-blue-700">Pipeline</p>
                                 </div>
-
-                                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 text-sm text-zinc-600 leading-relaxed">
-                                    <p className="mb-2">
-                                        Alex discussed BitForge's cloud storage needs, including scalability, real-time data analysis, and machine learning capabilities.
-                                    </p>
-                                    <p>
-                                        <strong>Next Steps:</strong> Calculate potential ROI and schedule a technical deep dive.
-                                    </p>
-                                    <div className="mt-4 flex gap-2">
-                                        <button className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded hover:bg-emerald-100 transition-colors">
-                                            <CheckCircle2 size={12} /> Mark as Done
-                                        </button>
-                                        <button className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded hover:bg-indigo-100 transition-colors">
-                                            <MonitorPlay size={12} /> Watch Recording
-                                        </button>
-                                    </div>
+                                <div className="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                    <p className="text-xs text-purple-600 uppercase font-bold tracking-wide mb-1">Decision Maker</p>
+                                    <p className="text-base font-bold text-purple-700 truncate" title={selectedDeal.contact_name || ''}>{selectedDeal.contact_name}</p>
                                 </div>
                             </div>
 
-                            {/* Activity Item 2 */}
-                            <div className="relative pl-6 border-l-2 border-zinc-100">
-                                <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-zinc-300" />
-                                <div className="mb-1">
-                                    <span className="text-xs text-zinc-400">Feb 14 • 2:15 PM</span>
+                            {/* Tabs */}
+                            <div className="px-6 pt-4">
+                                <div className="flex gap-6 border-b border-zinc-200">
+                                    <button className="pb-3 border-b-2 border-indigo-600 text-indigo-600 font-medium text-sm">Activity Timeline</button>
+                                    <button className="pb-3 border-b-2 border-transparent text-zinc-500 hover:text-zinc-700 font-medium text-sm">Contacts</button>
+                                    <button className="pb-3 border-b-2 border-transparent text-zinc-500 hover:text-zinc-700 font-medium text-sm">Intelligence</button>
                                 </div>
-                                <h3 className="font-medium text-zinc-700">Email sent to Sarah Connors</h3>
-                                <p className="text-sm text-zinc-500 mt-1">Re: Follow up on implementation timeline...</p>
+                            </div>
+
+                            {/* Timeline Content */}
+                            <div className="p-6 space-y-6">
+                                <div className="text-center text-zinc-400 py-10">
+                                    <MonitorPlay size={40} className="mx-auto mb-3 opacity-20" />
+                                    <p>No activity yet for this deal.</p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Quick Actions Footer */}
-                        <div className="mt-8 border-t border-zinc-200 pt-6">
-                            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">Recommended Actions</h4>
-                            <div className="space-y-3">
-                                <button className="w-full flex items-center justify-between p-3 bg-white border border-indigo-200 rounded-lg hover:border-indigo-400 hover:shadow-sm transition-all group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-indigo-50 p-2 rounded-lg text-indigo-600 group-hover:bg-indigo-100">
-                                            <Phone size={18} />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-medium text-zinc-900">Start Live SDR Session</p>
-                                            <p className="text-xs text-zinc-500">Prepare for next call</p>
-                                        </div>
-                                    </div>
-                                    <ArrowRight size={16} className="text-zinc-300 group-hover:text-indigo-500" />
-                                </button>
-                            </div>
+                        {/* Footer Actions */}
+                        <div className="p-4 border-t border-zinc-200 bg-zinc-50 flex justify-end gap-3">
+                            <button onClick={() => setIsDrawerOpen(false)} className="px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 hover:bg-white">Close</button>
+                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 shadow-sm shadow-indigo-500/20">Update Stage</button>
                         </div>
                     </div>
                 </div>

@@ -14,6 +14,13 @@ if (!openaiKey) {
 const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 const openai = new OpenAI({ apiKey: openaiKey })
 
+/**
+ * Endpoint POST para obtener sugerencias de IA basadas en el contexto de la llamada actual.
+ * Realiza una búsqueda semántica (RAG) en Supabase y genera una respuesta optimizada para el SDR.
+ * 
+ * @param req - Objeto Request con { transcript, organization_id } en el body.
+ * @returns NextResponse con la sugerencia de IA y los documentos de contexto utilizados.
+ */
 export async function POST(req: Request) {
     try {
         const { transcript, organization_id } = await req.json()
@@ -22,7 +29,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Missing transcript or organization_id' }, { status: 400 })
         }
 
-        // 1. Generate Embedding for the query (transcript chunk)
+        // 1. Generar Embedding para el fragmento de transcripción (query)
         const embeddingResponse = await openai.embeddings.create({
             model: 'text-embedding-3-small',
             input: transcript,
@@ -30,14 +37,13 @@ export async function POST(req: Request) {
 
         const embedding = embeddingResponse.data[0].embedding
 
-        // 2. Search in Supabase (Vector Search)
-        // Note: 'match_documents' is an RPC function we need to create in Supabase
-        // We will assume it exists for now as part of the architecture
+        // 2. Búsqueda Vectorial en Supabase
+        // Llama a la función RPC 'match_documents' que realiza la similitud de coseno
         const { data: documents, error: searchError } = await supabase.rpc('match_documents', {
-            query_embedding: embedding, // Pass as string if using pgvector-node or raw, but supabase-js usually handles array
-            match_threshold: 0.7, // Similarity threshold
-            match_count: 5,        // Number of chunks to retrieve
-            filter: { organization_id: organization_id } // Critical RLS/Isolation
+            query_embedding: embedding,
+            match_threshold: 0.7, // Umbral de similitud (ajustable)
+            match_count: 5,        // Número de fragmentos a recuperar
+            filter: { organization_id: organization_id } // Aislamiento multi-tenant
         })
 
         if (searchError) {
@@ -45,8 +51,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: searchError.message }, { status: 500 })
         }
 
-        // 3. Generate "Assistant" Response (Objection Handling)
-        // We feed the retrieved documents as context to the LLM
+        // 3. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
+        // Construimos el contexto textual a partir de los documentos recuperados
         const contextText = (documents as any[])?.map((d: any) => d.content).join("\n---\n") || ""
 
         const completion = await openai.chat.completions.create({
@@ -54,22 +60,23 @@ export async function POST(req: Request) {
             messages: [
                 {
                     role: "system",
-                    content: `You are an elite Sales Engineer for Pxsol, an "all-in-one" hotel technology platform.
+                    content: `Eres un Ingeniero de Ventas élite para Pxsol, una plataforma tecnológica hotelera "todo en uno".
           
-          YOUR GOAL: Provide a short, punchy, and winning response to the prospect's objection or query.
+          TU OBJETIVO: Proporcionar una respuesta corta, contundente y ganadora a la objeción o consulta del prospecto.
           
-          GUIDELINES:
-          1. USE THE CONTEXT: Strictly rely on the specific Pxsol features, integrations (Stripe, Payway, Turbosuite), and benefits (0% commissions) found in the CONTEXT below.
-          2. BE CONCISE: The SDR is on a live call. Keep the suggestion under 2 sentences if possible.
-          3. TONE: Professional, confident, and value-driven.
-          4. FORMAT: Direct speech. Don't say "You should say...", just give the line.
+          DIRECTRICES:
+          1. USA EL CONTEXTO: Confía estrictamente en las características específicas de Pxsol, integraciones (Stripe, Payway, Turbosuite) y beneficios (0% comisiones) que se encuentran en el CONTEXTO a continuación.
+          2. SÉ CONCISO: El SDR está en una llamada en vivo. Mantén la sugerencia en menos de 2 oraciones si es posible.
+          3. TONO: Profesional, seguro y orientado al valor.
+          4. FORMATO: Discurso directo. No digas "Deberías decir...", solo da la línea.
+          5. IDIOMA: SIEMPRE responde en ESPAÑOL.
 
-          CONTEXT FROM KNOWLEDGE BASE:
+          CONTEXTO DE LA BASE DE CONOCIMIENTO:
           ${contextText}
           
-          If the context is empty or irrelevant, fall back to general SaaS sales best practices but mention "our all-in-one platform".`
+          Si el contexto está vacío o es irrelevante, recurre a las mejores prácticas generales de ventas SaaS pero menciona "nuestra plataforma todo en uno".`
                 },
-                { role: "user", content: `Prospect says: "${transcript}"` }
+                { role: "user", content: `El prospecto dice: "${transcript}"` }
             ],
             temperature: 0.6,
         })

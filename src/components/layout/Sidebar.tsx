@@ -12,7 +12,9 @@ import {
     HelpCircle,
     LogOut,
     Mic,
-    Database
+    Database,
+    Building2,
+    Settings2
 } from 'lucide-react'
 
 const MENU_ITEMS = [
@@ -22,6 +24,11 @@ const MENU_ITEMS = [
     { icon: Mic, label: 'Asistente Live', path: '/dashboard/assistant' }, // Specific feature
     { icon: Database, label: 'Base de Conocimiento', path: '/dashboard/knowledge' },
     { icon: BarChart2, label: 'Reportes', path: '/dashboard/reports' },
+]
+
+const ORG_ITEMS = [
+    { icon: Building2, label: 'Mi Equipo', path: '/dashboard/organization/members' },
+    { icon: Settings2, label: 'Configuración Org', path: '/dashboard/organization/settings' },
 ]
 
 export default function Sidebar() {
@@ -37,27 +44,58 @@ export default function Sidebar() {
                 <span className="ml-3 font-bold text-xl hidden lg:block">AsistenteSDR</span>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 py-6 space-y-1 px-3">
-                {MENU_ITEMS.map((item) => {
-                    const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path))
-                    return (
-                        <Link
-                            key={item.path}
-                            href={item.path}
-                            title={item.label}
-                            className={`flex items-center px-3 py-3 rounded-xl transition-all group ${isActive
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
-                                : 'text-indigo-200 hover:bg-indigo-900/50 hover:text-white'
-                                }`}
-                        >
-                            <item.icon size={22} className={`${isActive ? 'text-white' : 'text-indigo-300 group-hover:text-white'}`} />
-                            <span className="ml-3 font-medium hidden lg:block">{item.label}</span>
-                            {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white hidden lg:block" />}
-                        </Link>
-                    )
-                })}
-            </nav>
+            {/* Navigation Sections Container */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+                {/* Main Navigation */}
+                <nav className="py-6 space-y-1 px-3">
+                    {MENU_ITEMS.map((item) => {
+                        const isActive = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(item.path))
+                        return (
+                            <Link
+                                key={item.path}
+                                href={item.path}
+                                title={item.label}
+                                className={`flex items-center px-3 py-3 rounded-xl transition-all group ${isActive
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
+                                    : 'text-indigo-200 hover:bg-indigo-900/50 hover:text-white'
+                                    }`}
+                            >
+                                <item.icon size={22} className={`${isActive ? 'text-white' : 'text-indigo-300 group-hover:text-white'}`} />
+                                <span className="ml-3 font-medium hidden lg:block">{item.label}</span>
+                                {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white hidden lg:block" />}
+                            </Link>
+                        )
+                    })}
+                </nav>
+
+                {/* Organization Section Header */}
+                <div className="px-6 py-4">
+                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest hidden lg:block mb-2">Organización</p>
+                    <div className="h-px bg-indigo-900/50 block lg:hidden" />
+                </div>
+
+                {/* Organization Navigation */}
+                <nav className="py-2 space-y-1 px-3">
+                    {ORG_ITEMS.map((item) => {
+                        const isActive = pathname === item.path || pathname.startsWith(item.path)
+                        return (
+                            <Link
+                                key={item.path}
+                                href={item.path}
+                                title={item.label}
+                                className={`flex items-center px-3 py-3 rounded-xl transition-all group ${isActive
+                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
+                                    : 'text-indigo-200 hover:bg-indigo-900/50 hover:text-white'
+                                    }`}
+                            >
+                                <item.icon size={22} className={`${isActive ? 'text-white' : 'text-indigo-300 group-hover:text-white'}`} />
+                                <span className="ml-3 font-medium hidden lg:block">{item.label}</span>
+                                {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white hidden lg:block" />}
+                            </Link>
+                        )
+                    })}
+                </nav>
+            </div>
 
             {/* Bottom Actions */}
             <div className="p-4 border-t border-indigo-900/50 space-y-2">

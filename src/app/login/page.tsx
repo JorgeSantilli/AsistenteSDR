@@ -43,7 +43,7 @@ export default function LoginPage() {
                 })
                 if (error) throw error
                 router.refresh()
-                router.push('/assistant')
+                router.push('/dashboard')
             }
         } catch (err: any) {
             setError(err.message)

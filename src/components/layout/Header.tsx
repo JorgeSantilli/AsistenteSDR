@@ -1,8 +1,14 @@
 'use client'
 
-import { Search, Bell, Plus, Filter, LayoutGrid, List } from 'lucide-react'
+import { Search, Bell, Plus } from 'lucide-react'
 
-export default function Header({ title = 'Dashboard' }) {
+export default function Header({
+    title = 'Dashboard',
+    onNewClick
+}: {
+    title?: string,
+    onNewClick?: () => void
+}) {
     return (
         <header className="h-20 bg-white border-b border-zinc-200 flex items-center justify-between px-8 sticky top-0 z-20">
 
@@ -37,7 +43,10 @@ export default function Header({ title = 'Dashboard' }) {
 
                 <div className="h-8 w-px bg-zinc-200 mx-2" />
 
-                <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all shadow-sm">
+                <button
+                    onClick={onNewClick}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all shadow-sm active:scale-95"
+                >
                     <Plus size={18} />
                     <span className="hidden sm:block">Nueva Oportunidad</span>
                 </button>
