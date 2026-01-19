@@ -10,7 +10,7 @@ const { globSync } = require('glob');
  * 2. Usar Promise<{...}> para params.
  */
 
-const API_DIR = path.join(process.cwd(), 'src/app/api');
+const API_DIR = path.join(process.cwd(), 'src/app');
 const routeFiles = globSync('**/route.ts', { cwd: API_DIR, absolute: true });
 
 let hasErrors = false;
