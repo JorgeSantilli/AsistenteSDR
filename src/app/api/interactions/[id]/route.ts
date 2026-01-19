@@ -1,19 +1,17 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { NextResponse, NextRequest } from 'next/server'
 
 /**
  * Endpoint PATCH para actualizar los datos de una interacción específica.
- * Actualmente se utiliza para actualizar las notas post-llamada.
- * 
- * @param request - Objeto NextRequest con { notes } en el body.
- * @param context - Contexto con params que contiene el ID de la interacción.
- * @returns NextResponse con el resultado de la actualización.
+ * Cumple con la firma asíncrona de 'params' requerida por Next.js 16.
  */
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = await params;
+    // En Next.js 16, params debe ser esperado antes de acceder a sus propiedades
+    const { id } = await params
+
     try {
         const { notes } = await request.json()
         const supabase = await createClient()
@@ -25,11 +23,21 @@ export async function PATCH(
             .select()
             .single()
 
-        if (error) throw error
+        if (error) {
+            throw error
+        }
 
-        return NextResponse.json({ success: true, data })
-    } catch (error: any) {
-        console.error('Error updating notes:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({
+            success: true,
+            data
+        })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error('Error updating interaction notes:', message)
+
+        return NextResponse.json(
+            { error: message },
+            { status: 500 }
+        )
     }
 }
