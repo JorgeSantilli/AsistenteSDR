@@ -286,7 +286,7 @@ export class DeepgramTranscriber {
         console.log('Deepgram: Connecting to WebSocket...')
 
         this.socket = new WebSocket(
-            'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&language=es',
+            'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&language=es&smart_format=true&endpointing=1000',
             ['token', this.apiKey]
         )
 

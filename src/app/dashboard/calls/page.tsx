@@ -17,7 +17,15 @@ import {
     AlertCircle,
     CheckCircle2,
     XCircle,
-    Save
+    Save,
+    Trash2,
+    BarChart2,
+    PieChart,
+    Tag,
+    TrendingUp,
+    ThumbsUp,
+    ThumbsDown,
+    Zap
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { exportTranscriptAsTXT, exportTranscriptAsPDF, downloadAudio } from '@/lib/export-utils'
@@ -31,6 +39,12 @@ type Interaction = {
     audio_url: string | null
     notes: string | null
     duration_seconds: number | null
+    interaction_suggestions?: {
+        id: string
+        objection_text: string
+        suggestion_text: string
+        is_useful: boolean | null
+    }[]
 }
 
 export default function CallsPage() {
@@ -61,18 +75,24 @@ export default function CallsPage() {
                         title,
                         company,
                         contact_name
+                    ),
+                    interaction_suggestions (
+                        id,
+                        objection_text,
+                        suggestion_text,
+                        is_useful
                     )
                 `)
                 .order('created_at', { ascending: false })
 
             if (error) throw error
 
-            const typedData = (data || []) as (Interaction & { deals: any })[]
+            const typedData = (data || []) as any
             setInteractions(typedData)
 
             // Initialize notes state
             const notesMap: Record<string, string> = {}
-            typedData.forEach(interaction => {
+            typedData.forEach((interaction: Interaction) => {
                 notesMap[interaction.id] = interaction.notes || ''
             })
             setNotes(notesMap)
@@ -96,6 +116,84 @@ export default function CallsPage() {
         } finally {
             setSavingNotes(null)
         }
+    }
+
+    const handleDelete = async (interactionId: string) => {
+        if (!confirm('¿Estás seguro de que deseas eliminar esta llamada? Esta acción no se puede deshacer.')) return
+
+        try {
+            const { error } = await supabase
+                .from('interactions')
+                .delete()
+                .eq('id', interactionId)
+
+            if (error) throw error
+
+            setInteractions(prev => prev.filter(i => i.id !== interactionId))
+        } catch (error) {
+            console.error('Error deleting interaction:', error)
+            alert('Error al eliminar la llamada')
+        }
+    }
+
+    const rateSuggestion = async (suggestionId: string, isUseful: boolean) => {
+        try {
+            const { error } = await supabase
+                .from('interaction_suggestions' as any)
+                .update({ is_useful: isUseful } as any)
+                .eq('id', suggestionId)
+
+            if (error) throw error
+
+            // Update local state
+            setInteractions(prev => (prev as any[]).map(interaction => ({
+                ...interaction,
+                interaction_suggestions: interaction.interaction_suggestions?.map((s: any) =>
+                    s.id === suggestionId ? { ...s, is_useful: isUseful } : s
+                )
+            })))
+        } catch (error) {
+            console.error('Error rating suggestion:', error)
+        }
+    }
+
+    const getMetrics = (transcript: string | null) => {
+        if (!transcript) return { sdrWords: 0, leadWords: 0, topWords: [], ratio: 50 }
+
+        const lines = transcript.split('\n')
+        let sdrWords = 0
+        let leadWords = 0
+        const wordFreq: Record<string, number> = {}
+        const stopWords = new Set([
+            'el', 'la', 'los', 'las', 'un', 'una', 'y', 'o', 'que', 'en', 'es', 'de', 'del', 'no', 'si', 'por', 'para', 'con',
+            'sdr:', 'lead:', 'hola', 'este', 'esta', 'estos', 'estas', 'todo', 'toda', 'pero', 'mas', 'muy', 'como', 'cuando',
+            'donde', 'quien', 'porque', 'para', 'bueno', 'bien', 'claro', 'entonces', 'tambien', 'desde'
+        ])
+
+        lines.forEach(line => {
+            const isSDR = line.startsWith('SDR:')
+            const isLead = line.startsWith('Lead:')
+            const content = line.replace(/^(SDR:|Lead:)\s*/, '')
+            const words = content.toLowerCase().match(/\b\w+\b/g) || []
+
+            if (isSDR) sdrWords += words.length
+            if (isLead) leadWords += words.length
+
+            words.forEach(w => {
+                if (w.length > 3 && !stopWords.has(w)) {
+                    wordFreq[w] = (wordFreq[w] || 0) + 1
+                }
+            })
+        })
+
+        const total = sdrWords + leadWords
+        const ratio = total > 0 ? (sdrWords / total) * 100 : 50
+        const topWords = Object.entries(wordFreq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([word]) => word)
+
+        return { sdrWords, leadWords, topWords, ratio }
     }
 
     const toggleAudio = (interactionId: string, audioUrl: string) => {
@@ -346,6 +444,117 @@ export default function CallsPage() {
                                                 </div>
                                             </div>
 
+                                            {/* Metrics Panel */}
+                                            {interaction.transcript_full && (
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div className="bg-white rounded-lg border border-zinc-200 p-4">
+                                                        <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                            <BarChart2 size={14} /> Participación
+                                                        </h5>
+                                                        {(() => {
+                                                            const { sdrWords, leadWords, ratio } = getMetrics(interaction.transcript_full)
+                                                            return (
+                                                                <div className="space-y-4">
+                                                                    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden flex">
+                                                                        <div className="bg-indigo-500 h-full" style={{ width: `${ratio}%` }} />
+                                                                        <div className="bg-zinc-300 h-full" style={{ width: `${100 - ratio}%` }} />
+                                                                    </div>
+                                                                    <div className="flex justify-between items-end">
+                                                                        <div>
+                                                                            <p className="text-[10px] text-zinc-500 uppercase font-medium">SDR</p>
+                                                                            <p className="text-lg font-bold text-indigo-600">{sdrWords}</p>
+                                                                            <p className="text-[10px] text-zinc-400">palabras</p>
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <p className="text-[10px] text-zinc-500 uppercase font-medium">Lead</p>
+                                                                            <p className="text-lg font-bold text-zinc-500">{leadWords}</p>
+                                                                            <p className="text-[10px] text-zinc-400">palabras</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })()}
+                                                    </div>
+
+                                                    <div className="bg-white rounded-lg border border-zinc-200 p-4">
+                                                        <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                            <TrendingUp size={14} /> Dominio
+                                                        </h5>
+                                                        {(() => {
+                                                            const { ratio } = getMetrics(interaction.transcript_full)
+                                                            return (
+                                                                <div className="flex flex-col items-center justify-center py-2 text-center">
+                                                                    <span className="text-2xl font-black text-zinc-800 mb-1">
+                                                                        {ratio > 60 ? 'SDR Domina' : ratio < 40 ? 'Lead Domina' : 'Equilibrada'}
+                                                                    </span>
+                                                                    <p className="text-xs text-zinc-500 leading-tight">
+                                                                        Basado en el volumen de palabras intercambiadas
+                                                                    </p>
+                                                                </div>
+                                                            )
+                                                        })()}
+                                                    </div>
+
+                                                    <div className="bg-white rounded-lg border border-zinc-200 p-4">
+                                                        <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                            <Tag size={14} /> Palabras Clave
+                                                        </h5>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {getMetrics(interaction.transcript_full).topWords.map(word => (
+                                                                <span key={word} className="px-2 py-1 bg-zinc-100 text-zinc-600 rounded text-xs font-medium border border-zinc-200">
+                                                                    {word}
+                                                                </span>
+                                                            ))}
+                                                            {getMetrics(interaction.transcript_full).topWords.length === 0 && (
+                                                                <p className="text-xs text-zinc-400 italic">No hay suficientes datos</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Suggestions Analysis */}
+                                            {interaction.interaction_suggestions && interaction.interaction_suggestions.length > 0 && (
+                                                <div className="space-y-4">
+                                                    <h4 className="font-semibold text-zinc-900 flex items-center gap-2">
+                                                        <Zap size={18} className="text-amber-500" />
+                                                        Análisis de Objeciones y Sugerencias
+                                                    </h4>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        {interaction.interaction_suggestions.map((s) => (
+                                                            <div key={s.id} className="bg-white rounded-lg border border-zinc-200 p-4 flex flex-col gap-3">
+                                                                <div className="flex justify-between items-start gap-4">
+                                                                    <div className="flex-1">
+                                                                        <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Objeción detectada</p>
+                                                                        <p className="text-sm text-zinc-700 italic">"{s.objection_text}"</p>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <button
+                                                                            onClick={() => rateSuggestion(s.id, true)}
+                                                                            className={`p-1.5 rounded-md transition-all ${s.is_useful === true ? 'bg-green-100 text-green-600' : 'hover:bg-zinc-100 text-zinc-400'}`}
+                                                                            title="Útil"
+                                                                        >
+                                                                            <ThumbsUp size={16} />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => rateSuggestion(s.id, false)}
+                                                                            className={`p-1.5 rounded-md transition-all ${s.is_useful === false ? 'bg-red-100 text-red-600' : 'hover:bg-zinc-100 text-zinc-400'}`}
+                                                                            title="No útil"
+                                                                        >
+                                                                            <ThumbsDown size={16} />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-amber-50/50 border border-amber-100 rounded-md p-3">
+                                                                    <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">Sugerencia Co-Pilot</p>
+                                                                    <p className="text-sm text-zinc-800">{s.suggestion_text}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Notes Section */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-3">
@@ -391,6 +600,13 @@ export default function CallsPage() {
                                                 >
                                                     <FileText size={16} />
                                                     Exportar PDF
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(interaction.id)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-red-100 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium ml-auto"
+                                                >
+                                                    <Trash2 size={16} />
+                                                    Eliminar
                                                 </button>
                                             </div>
                                         </div>

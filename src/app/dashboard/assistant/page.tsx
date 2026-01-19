@@ -40,6 +40,7 @@ type Suggestion = {
     confidence: number
     citations?: { source: string; page?: number }[]
     context_used?: { content: string; metadata: any }[]
+    source?: string
 }
 
 /**
@@ -62,6 +63,11 @@ export default function LiveAssistantPage() {
 
     const transcriptEndRef = useRef<HTMLDivElement>(null)
     const audioCapture = useRef<AudioCapture | null>(null)
+    const suggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const accumulatedClientTextRef = useRef<string>('')
+    const lastSourceRef = useRef<'sdr' | 'client' | null>(null)
+    const lastTimestampRef = useRef<number>(0)
+    const sessionSuggestionsRef = useRef<{ objection: string, suggestion: string }[]>([])
     const supabase = createClient()
     const router = useRouter()
 
@@ -98,6 +104,15 @@ export default function LiveAssistantPage() {
      * Configura el estado inicial, solicita permisos de audio e inicia la captura y transcripción.
      */
     const handleStartSession = async (config: { source: 'microphone' | 'system' | 'both', dealId?: string }) => {
+        // Reset session state
+        setTranscript([])
+        setSuggestions([])
+        sessionSuggestionsRef.current = [] // Limpiar sugerencias anteriores
+        accumulatedClientTextRef.current = ''
+        lastSourceRef.current = null
+        lastTimestampRef.current = 0
+
+        setIsLive(true)
         setAudioSource(config.source)
         setShowStartModal(false)
 
@@ -168,25 +183,60 @@ export default function LiveAssistantPage() {
      * @param source - La fuente del audio ('sdr' o 'client').
      */
     const handleTranscriptUpdate = async (text: string, isFinal: boolean, source: 'sdr' | 'client' = 'client') => {
+        if (!text.trim()) return
+
         if (!isFinal) {
             setInterimTranscript(text)
             return
         }
 
-        // Final transcript - add to messages
         setInterimTranscript('')
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            role: source === 'sdr' ? 'sdr' : 'lead', // SDR a la derecha, Lead a la izquierda
-            content: text,
-            timestamp: new Date()
+        const now = Date.now()
+        const isSameSource = source === lastSourceRef.current
+        const isRecent = now - lastTimestampRef.current < 4000 // 4 segundos de ventana para agrupar
+
+        if (isSameSource && isRecent) {
+            // Agrupar con el mensaje anterior
+            setTranscript(prev => {
+                if (prev.length === 0) return prev
+                const last = { ...prev[prev.length - 1] }
+                last.content = last.content + " " + text
+                return [...prev.slice(0, -1), last]
+            })
+            if (source === 'client') {
+                accumulatedClientTextRef.current += " " + text
+            }
+        } else {
+            // Nuevo mensaje o cambio de interlocutor
+            const newMessage: Message = {
+                id: now.toString(),
+                role: source === 'sdr' ? 'sdr' : 'lead',
+                content: text,
+                timestamp: new Date()
+            }
+            setTranscript(prev => [...prev, newMessage])
+            if (source === 'client') {
+                accumulatedClientTextRef.current = text
+            } else {
+                accumulatedClientTextRef.current = ''
+            }
         }
 
-        setTranscript(prev => [...prev, newMessage])
+        lastSourceRef.current = source
+        lastTimestampRef.current = now
 
-        // Get AI suggestion only if it's from the client
+        // Gestión de Sugerencias IA (Debounce)
+        if (suggestionTimeoutRef.current) {
+            clearTimeout(suggestionTimeoutRef.current)
+        }
+
         if (source === 'client') {
-            await fetchAISuggestion(text)
+            suggestionTimeoutRef.current = setTimeout(async () => {
+                if (accumulatedClientTextRef.current.trim()) {
+                    console.log("Solicitando sugerencia para bloque acumulado:", accumulatedClientTextRef.current)
+                    await fetchAISuggestion(accumulatedClientTextRef.current)
+                }
+            }, 2000) // Esperar 2 segundos de silencio antes de pedir sugerencia
         }
     }
 
@@ -248,7 +298,20 @@ export default function LiveAssistantPage() {
                     duration_seconds: durationSeconds
                 }).select().single()
 
-                if (data) setCurrentInteractionId(data.id)
+                if (data) {
+                    setCurrentInteractionId(data.id)
+
+                    // Save suggestions if any
+                    if (sessionSuggestionsRef.current.length > 0) {
+                        const suggestionsToSave = sessionSuggestionsRef.current.map(s => ({
+                            interaction_id: data.id,
+                            objection_text: s.objection,
+                            suggestion_text: s.suggestion
+                        }))
+
+                        await supabase.from('interaction_suggestions' as any).insert(suggestionsToSave as any)
+                    }
+                }
             } catch (e) {
                 console.error("Error saving interaction", e)
             }
@@ -331,12 +394,19 @@ export default function LiveAssistantPage() {
             const data = await response.json()
 
             if (data.suggestion) {
-                setSuggestions(prev => [{
+                const newSuggestion: Suggestion = {
                     id: Date.now().toString(),
                     content: data.suggestion,
                     confidence: 0.9,
-                    context_used: data.context_used
-                }, ...prev])
+                    source: 'AI Co-Pilot'
+                }
+                setSuggestions(prev => [newSuggestion, ...prev])
+
+                // Track for saving later
+                sessionSuggestionsRef.current.push({
+                    objection: transcriptText,
+                    suggestion: data.suggestion
+                })
             }
         } catch (error) {
             console.error("Error fetching context:", error)
