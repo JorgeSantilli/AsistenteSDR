@@ -15,7 +15,9 @@ import {
     MonitorPlay,
     CheckCircle2,
     XCircle,
-    Clock
+    Clock,
+    List,
+    LayoutGrid
 } from 'lucide-react'
 
 // Mock Data matching the screenshot style
@@ -117,8 +119,8 @@ export default function PipelinePage() {
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <span className={`px-2 py-1 rounded text-xs font-bold w-9 text-center ${deal.score > 70 ? 'bg-emerald-100 text-emerald-700' :
-                                                    deal.score > 30 ? 'bg-zinc-100 text-zinc-700' :
-                                                        'bg-red-100 text-red-700'
+                                                deal.score > 30 ? 'bg-zinc-100 text-zinc-700' :
+                                                    'bg-red-100 text-red-700'
                                                 }`}>
                                                 {deal.score}
                                             </span>
@@ -134,8 +136,8 @@ export default function PipelinePage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deal.stage === 'Discovery' ? 'bg-purple-100 text-purple-700' :
-                                                deal.stage === 'Presentation' ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-zinc-100 text-zinc-700'
+                                            deal.stage === 'Presentation' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-zinc-100 text-zinc-700'
                                             }`}>
                                             {deal.stage}
                                         </span>
@@ -146,8 +148,8 @@ export default function PipelinePage() {
                                                 <div
                                                     key={i}
                                                     className={`w-2 h-2 rounded-full ${act === 0 ? 'bg-zinc-200' :
-                                                            act === 1 ? 'bg-indigo-400' :
-                                                                'bg-pink-500'
+                                                        act === 1 ? 'bg-indigo-400' :
+                                                            'bg-pink-500'
                                                         }`}
                                                     title="Activity logged"
                                                 />

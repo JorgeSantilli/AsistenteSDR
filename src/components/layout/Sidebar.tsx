@@ -18,7 +18,7 @@ const MENU_ITEMS = [
     { icon: Home, label: 'Inicio', path: '/dashboard' },
     { icon: Briefcase, label: 'Pipeline', path: '/dashboard/pipeline' },
     { icon: Phone, label: 'Llamadas', path: '/dashboard/calls' },
-    { icon: Mic, label: 'Asistente Live', path: '/assistant' }, // Specific feature
+    { icon: Mic, label: 'Asistente Live', path: '/dashboard/assistant' }, // Specific feature
     { icon: BarChart2, label: 'Reportes', path: '/dashboard/reports' },
 ]
 
@@ -45,8 +45,8 @@ export default function Sidebar() {
                             href={item.path}
                             title={item.label}
                             className={`flex items-center px-3 py-3 rounded-xl transition-all group ${isActive
-                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
-                                    : 'text-indigo-200 hover:bg-indigo-900/50 hover:text-white'
+                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20'
+                                : 'text-indigo-200 hover:bg-indigo-900/50 hover:text-white'
                                 }`}
                         >
                             <item.icon size={22} className={`${isActive ? 'text-white' : 'text-indigo-300 group-hover:text-white'}`} />
