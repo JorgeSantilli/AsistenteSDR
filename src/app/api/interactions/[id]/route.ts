@@ -11,9 +11,9 @@ import { NextResponse, NextRequest } from 'next/server'
  */
 export async function PATCH(
     request: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const params = await context.params;
+    const { id } = await params;
     try {
         const { notes } = await request.json()
         const supabase = await createClient()
@@ -21,7 +21,7 @@ export async function PATCH(
         const { data, error } = await supabase
             .from('interactions')
             .update({ notes })
-            .eq('id', params.id)
+            .eq('id', id)
             .select()
             .single()
 
