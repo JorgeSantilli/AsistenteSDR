@@ -11,7 +11,8 @@ import {
     Settings,
     HelpCircle,
     LogOut,
-    Mic
+    Mic,
+    Database
 } from 'lucide-react'
 
 const MENU_ITEMS = [
@@ -19,6 +20,7 @@ const MENU_ITEMS = [
     { icon: Briefcase, label: 'Pipeline', path: '/dashboard/pipeline' },
     { icon: Phone, label: 'Llamadas', path: '/dashboard/calls' },
     { icon: Mic, label: 'Asistente Live', path: '/dashboard/assistant' }, // Specific feature
+    { icon: Database, label: 'Base de Conocimiento', path: '/dashboard/knowledge' },
     { icon: BarChart2, label: 'Reportes', path: '/dashboard/reports' },
 ]
 
