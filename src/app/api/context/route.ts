@@ -1,35 +1,43 @@
 import { createClient } from '@supabase/supabase-js'
 import { OpenAI } from 'openai'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const openaiKey = process.env.OPENAI_API_KEY
-
-if (!openaiKey) {
-    console.error("OPENAI_API_KEY is not set")
-}
-
-const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
-const openai = new OpenAI({ apiKey: openaiKey })
 
 /**
  * Endpoint POST para obtener sugerencias de IA basadas en el contexto de la llamada actual.
  * Realiza una búsqueda semántica (RAG) en Supabase y genera una respuesta optimizada para el SDR.
  * 
- * @param req - Objeto Request con { transcript, organization_id } en el body.
+ * @param req - Objeto NextRequest con { transcript, organization_id } en el body.
  * @returns NextResponse con la sugerencia de IA y los documentos de contexto utilizados.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
+        // 1. Obtener variables de entorno (dentro del handler para evitar errores en build time)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        const openaiKey = process.env.OPENAI_API_KEY
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+            console.error("Supabase environment variables are missing")
+            return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+        }
+
+        if (!openaiKey) {
+            console.error("OPENAI_API_KEY is not set")
+            return NextResponse.json({ error: 'OpenAI configuration error' }, { status: 500 })
+        }
+
+        // 2. Inicializar clientes dentro del handler
+        const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+        const openai = new OpenAI({ apiKey: openaiKey })
+
         const { transcript, organization_id } = await req.json()
 
         if (!transcript || !organization_id) {
             return NextResponse.json({ error: 'Missing transcript or organization_id' }, { status: 400 })
         }
 
-        // 1. Generar Embedding para el fragmento de transcripción (query)
+        // 3. Generar Embedding para el fragmento de transcripción (query)
         const embeddingResponse = await openai.embeddings.create({
             model: 'text-embedding-3-small',
             input: transcript,
@@ -37,13 +45,12 @@ export async function POST(req: Request) {
 
         const embedding = embeddingResponse.data[0].embedding
 
-        // 2. Búsqueda Vectorial en Supabase
-        // Llama a la función RPC 'match_documents' que realiza la similitud de coseno
+        // 4. Búsqueda Vectorial en Supabase
         const { data: documents, error: searchError } = await supabase.rpc('match_documents' as any, {
             query_embedding: embedding,
-            match_threshold: 0.7, // Umbral de similitud (ajustable)
-            match_count: 5,        // Número de fragmentos a recuperar
-            filter: { organization_id: organization_id } // Aislamiento multi-tenant
+            match_threshold: 0.7,
+            match_count: 5,
+            filter: { organization_id: organization_id }
         })
 
         if (searchError) {
@@ -51,8 +58,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: searchError.message }, { status: 500 })
         }
 
-        // 3. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
-        // Construimos el contexto textual a partir de los documentos recuperados
+        // 5. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
         const contextText = (documents as any[])?.map((d: any) => d.content).join("\n---\n") || ""
 
         const completion = await openai.chat.completions.create({
@@ -88,8 +94,9 @@ export async function POST(req: Request) {
             context_used: (documents as any[])?.map((d: any) => ({ content: d.content, metadata: d.metadata }))
         })
 
-    } catch (error) {
-        console.error("API Error:", error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error("API Error:", message)
+        return NextResponse.json({ error: 'Internal Server Error', details: message }, { status: 500 })
     }
 }
