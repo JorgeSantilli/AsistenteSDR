@@ -1,13 +1,19 @@
 import { createClient } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-})
-
-export async function POST(request: Request) {
+/**
+ * Endpoint POST para ingesta de documentos en la base de conocimientos.
+ * Genera embeddings automáticamente y almacena en Supabase.
+ */
+export async function POST(request: NextRequest) {
     try {
+        const openaiKey = process.env.OPENAI_API_KEY
+        if (!openaiKey) {
+            return NextResponse.json({ error: 'OpenAI API Key not configured' }, { status: 500 })
+        }
+
+        const openai = new OpenAI({ apiKey: openaiKey })
         const { content, tags, source } = await request.json()
         const supabase = await createClient()
 
@@ -52,8 +58,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, data })
 
-    } catch (error: any) {
-        console.error('Ingest API Error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error('Ingest API Error:', message)
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

@@ -1,17 +1,23 @@
 import { createClient } from '@/lib/supabase-server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-})
-
-export async function POST(req: Request) {
+/**
+ * Endpoint POST para el bucle de retroalimentación y aprendizaje dinámico.
+ * Analiza transcripciones para extraer mejores prácticas y guardarlas en la KB.
+ */
+export async function POST(req: NextRequest) {
     try {
+        const openaiKey = process.env.OPENAI_API_KEY
+        if (!openaiKey) {
+            return NextResponse.json({ error: 'OpenAI API Key not configured' }, { status: 500 })
+        }
+
+        const openai = new OpenAI({ apiKey: openaiKey })
         const { interaction_id } = await req.json()
         if (!interaction_id) return NextResponse.json({ error: 'Missing interaction_id' }, { status: 400 })
 
-        const supabase = await createClient() // Server client with auth context
+        const supabase = await createClient()
 
         // 1. Get Interaction
         const { data: interaction, error: intError } = await supabase
@@ -41,7 +47,6 @@ export async function POST(req: Request) {
         const content = completion.choices[0].message.content
         let insights = []
         try {
-            // Cleanup potential markdown fences
             const jsonStr = content?.replace(/```json/g, '').replace(/```/g, '') || '[]'
             insights = JSON.parse(jsonStr)
         } catch (e) {
@@ -76,8 +81,9 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, learned_items: learningResults })
 
-    } catch (error: any) {
-        console.error("Feedback Loop Error:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error("Feedback Loop Error:", message)
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }
