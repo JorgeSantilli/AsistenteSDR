@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const { data, error } = await supabase.from('knowledge_base').insert({
             organization_id: orgId,
             content: content,
-            embedding: embedding as any,
+            embedding: JSON.stringify(embedding),
             metadata: {
                 tags: tags || [],
                 source: source || 'api_upload',

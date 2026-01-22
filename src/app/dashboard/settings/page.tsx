@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
 import {
     User,
@@ -92,8 +94,8 @@ export default function SettingsPage() {
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors border-l-2 ${activeTab === tab.id
-                                                ? 'bg-indigo-50 text-indigo-700 border-indigo-600'
-                                                : 'text-zinc-600 hover:bg-zinc-50 border-transparent hover:text-zinc-900'
+                                            ? 'bg-indigo-50 text-indigo-700 border-indigo-600'
+                                            : 'text-zinc-600 hover:bg-zinc-50 border-transparent hover:text-zinc-900'
                                             }`}
                                     >
                                         <Icon size={18} />

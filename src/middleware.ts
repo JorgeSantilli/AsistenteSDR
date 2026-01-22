@@ -1,7 +1,12 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/server-utils'
 
-export async function proxy(request: NextRequest) {
+/**
+ * Middleware de Next.js para manejar la sesión de Supabase.
+ * TODO: En futuras versiones de la arquitectura, considerar mover lógica persistente a /app/proxy.ts 
+ * si se decide desacoplar el manejo de sesiones del middleware principal.
+ */
+export async function middleware(request: NextRequest) {
     return await updateSession(request)
 }
 

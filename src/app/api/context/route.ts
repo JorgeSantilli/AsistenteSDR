@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
         }
 
         // 6. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
-        const contextText = (documents as any[])?.map((d: any) => d.content).join("\n---\n") || ""
+        const docs = documents as { content: string; metadata: any }[] | null
+        const contextText = docs?.map(d => d.content).join("\n---\n") || ""
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
           3. TONO: Profesional, seguro y orientado al valor.
           4. FORMATO: Discurso directo. No digas "Deberías decir...", solo da la línea.
           5. IDIOMA: SIEMPRE responde en ESPAÑOL.
-
+          
           CONTEXTO DE LA BASE DE CONOCIMIENTO:
           ${contextText}
           
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             suggestion,
-            context_used: (documents as any[])?.map((d: any) => ({ content: d.content, metadata: d.metadata }))
+            context_used: docs?.map(d => ({ content: d.content, metadata: d.metadata }))
         })
 
     } catch (error: unknown) {
