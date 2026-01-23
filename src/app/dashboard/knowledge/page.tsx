@@ -33,6 +33,8 @@ export default function KnowledgePage() {
     const [newItemTags, setNewItemTags] = useState('')
     const [showAddModal, setShowAddModal] = useState(false)
 
+    const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null)
+
     const supabase = createClient()
 
     const fetchKnowledge = async () => {
@@ -55,13 +57,8 @@ export default function KnowledgePage() {
     const handleManualAdd = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsUploading(true)
+        setFeedback(null)
 
-        // For this prototype, we'll hit the 'seed' logic or a new ingest logic
-        // But since we want embeddings, we should probably use an API route that handles embeddings
-        // We'll reuse the logic from the seed script essentially, but exposed as a single item ingest
-
-        // TEMPORARY: using a direct insert assuming we have an API or trigger later.
-        // actually, we need embeddings. Let's create a quick API for this.
         try {
             const response = await fetch('/api/ingest', {
                 method: 'POST',
@@ -73,15 +70,21 @@ export default function KnowledgePage() {
                 })
             })
 
-            if (!response.ok) throw new Error('Failed to ingest')
+            const result = await response.json()
+
+            if (!response.ok) throw new Error(result.error || 'Failed to ingest')
 
             await fetchKnowledge()
             setShowAddModal(false)
             setNewItemContent('')
             setNewItemTags('')
-            alert('Conocimiento agregado exitosamente')
-        } catch (error) {
-            alert('Error al agregar conocimiento')
+            setFeedback({ type: 'success', message: `Conocimiento procesado: ${result.chunks_processed} fragmentos generados.` })
+
+            // Clear success message after 5 seconds
+            setTimeout(() => setFeedback(null), 5000)
+
+        } catch (error: any) {
+            setFeedback({ type: 'error', message: error.message || 'Error al agregar conocimiento' })
             console.error(error)
         } finally {
             setIsUploading(false)
@@ -143,6 +146,12 @@ export default function KnowledgePage() {
 
                 {/* Knowledge List */}
                 <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+                    {feedback && (
+                        <div className={`px-6 py-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-b border-emerald-100' : 'bg-red-50 text-red-600 border-b border-red-100'
+                            }`}>
+                            {feedback.message}
+                        </div>
+                    )}
                     <div className="px-6 py-4 border-b border-zinc-200 flex justify-between items-center">
                         <h3 className="font-bold text-zinc-800">Fragmentos Indexados</h3>
                         <div className="relative">

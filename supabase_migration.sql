@@ -19,3 +19,6 @@ CREATE POLICY "Users can manage suggestions for their org interactions"
 ON interaction_suggestions FOR ALL USING (
   EXISTS (SELECT 1 FROM interactions WHERE interactions.id = interaction_suggestions.interaction_id)
 );
+
+-- 5. Agregar columna de System Prompt a Organizaciones
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS system_prompt TEXT DEFAULT 'Eres un asistente experto en ventas SDR. Tu objetivo es ayudar a responder objeciones y dudas de prospectos basándote en la base de conocimiento de la empresa. Responde de forma concisa, profesional y persuasiva, siempre en español.';

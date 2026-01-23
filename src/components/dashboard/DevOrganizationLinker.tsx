@@ -28,16 +28,11 @@ export default function DevOrganizationLinker() {
                     return
                 }
 
-                // 2. Verificar perfil y organización
-                const { data: profiles, error: profileError } = await supabase
+                // 2. Verificar si ya tiene organización
+                const { data: profiles } = await supabase
                     .from('profiles')
                     .select('organization_id')
                     .eq('id', user.id)
-
-                if (profileError) {
-                    console.error('Error fetching profile:', profileError)
-                    // No cortamos aquí, intentamos crear el perfil más adelante
-                }
 
                 const profile = profiles && profiles.length > 0 ? profiles[0] : null
 
@@ -46,59 +41,38 @@ export default function DevOrganizationLinker() {
                     return // Ya tiene organización
                 }
 
+                // 3. Usar endpoint admin para evitar problemas de RLS
                 setStatus('linking')
-                setMessage('Configurando "Pxsol Test"...')
+                setMessage('Configurando organización...')
 
-                // 3. Buscar o crear la organización "Pxsol Test"
-                let orgId: string
+                const response = await fetch('/api/admin/setup-org', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                })
 
-                const { data: existingOrgs } = await supabase
-                    .from('organizations')
-                    .select('id')
-                    .eq('name', 'Pxsol Test')
+                const result = await response.json()
 
-                if (existingOrgs && existingOrgs.length > 0) {
-                    orgId = existingOrgs[0].id
-                } else {
-                    const { data: newOrg, error: orgError } = await supabase
-                        .from('organizations')
-                        .insert({ name: 'Pxsol Test' })
-                        .select()
-                        .single()
-
-                    if (orgError) throw orgError
-                    orgId = newOrg.id
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to setup organization')
                 }
 
-                // 4. Asegurar perfil y vincular
-                const { error: upsertError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: user.id,
-                        organization_id: orgId,
-                        full_name: user.user_metadata?.full_name || 'Jorge Santilli'
-                    })
-
-                if (upsertError) throw upsertError
-
                 setStatus('done')
-                setMessage('Organización "Pxsol Test" vinculada con éxito.')
+                setMessage('Organización vinculada con éxito.')
 
-                // Recargar para que los cambios surtan efecto en otros componentes
+                // Recargar para que los cambios surtan efecto
                 setTimeout(() => {
-                    console.log('Reloading page to apply organization changes...')
                     window.location.reload()
                 }, 2000)
 
             } catch (error: any) {
-                console.error('Error detailed in DevOrganizationLinker:', {
-                    message: error.message,
-                    details: error.details,
-                    hint: error.hint,
-                    code: error.code
-                })
+                // Solo logueamos detalles si existen
+                if (error?.message) {
+                    console.error('DevOrganizationLinker Error:', error.message)
+                    if (error.hint) console.error('Hint:', error.hint)
+                }
                 setStatus('error')
-                setMessage(`Error: ${error.message || 'Error desconocido'}`)
+                setMessage(error?.message || 'Error al configurar organización')
             }
         }
 

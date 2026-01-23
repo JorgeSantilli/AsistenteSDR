@@ -64,7 +64,25 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: searchError.message }, { status: 500 })
         }
 
-        // 6. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
+        // 6. Recuperar el System Prompt de la Organización
+        const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('system_prompt')
+            .eq('id', organization_id)
+            .single()
+
+        // Prompt por defecto si no hay uno configurado o falla la consulta
+        const defaultPrompt = `Eres un asistente experto en ventas SDR.
+        TU OBJETIVO: Proporcionar una respuesta corta, contundente y ganadora a la objeción o consulta del prospecto.
+        DIRECTRICES:
+        1. USA EL CONTEXTO: Confía estrictamente en la información del contexto proporcionado.
+        2. SÉ CONCISO: Mantén la sugerencia en menos de 2 oraciones.
+        3. TONO: Profesional, seguro y orientado al valor.
+        4. IDIOMA: SIEMPRE responde en ESPAÑOL.`
+
+        const systemPrompt = orgData?.system_prompt || defaultPrompt
+
+        // 7. Generar respuesta con el Co-Piloto (Manejo de Objeciones)
         const docs = documents as { content: string; metadata: any }[] | null
         const contextText = docs?.map(d => d.content).join("\n---\n") || ""
 
@@ -73,21 +91,12 @@ export async function POST(req: NextRequest) {
             messages: [
                 {
                     role: "system",
-                    content: `Eres un Ingeniero de Ventas élite para Pxsol, una plataforma tecnológica hotelera "todo en uno".
+                    content: `${systemPrompt}
           
-          TU OBJETIVO: Proporcionar una respuesta corta, contundente y ganadora a la objeción o consulta del prospecto.
-          
-          DIRECTRICES:
-          1. USA EL CONTEXTO: Confía estrictamente en las características específicas de Pxsol, integraciones (Stripe, Payway, Turbosuite) y beneficios (0% comisiones) que se encuentran en el CONTEXTO a continuación.
-          2. SÉ CONCISO: El SDR está en una llamada en vivo. Mantén la sugerencia en menos de 2 oraciones si es posible.
-          3. TONO: Profesional, seguro y orientado al valor.
-          4. FORMATO: Discurso directo. No digas "Deberías decir...", solo da la línea.
-          5. IDIOMA: SIEMPRE responde en ESPAÑOL.
-          
-          CONTEXTO DE LA BASE DE CONOCIMIENTO:
+          CONTEXTO DE LA BASE DE CONOCIMIENTO (Recuperado vía RAG):
           ${contextText}
           
-          Si el contexto está vacío o es irrelevante, recurre a las mejores prácticas generales de ventas SaaS pero menciona "nuestra plataforma todo en uno".`
+           INSTRUCCIÓN FINAL: Si el contexto está vacío, usa tu conocimiento general de ventas pero prioriza siempre la brevedad.`
                 },
                 { role: "user", content: `El prospecto dice: "${transcript}"` }
             ],

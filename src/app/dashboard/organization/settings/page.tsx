@@ -27,6 +27,7 @@ export default function OrgSettingsPage() {
     const [saving, setSaving] = useState(false)
     const [orgData, setOrgData] = useState<any>({
         name: '',
+        system_prompt: '',
         settings: {
             industry: '',
             default_tone: 'Profesional',
@@ -61,6 +62,7 @@ export default function OrgSettingsPage() {
                 if (org) {
                     setOrgData({
                         ...org,
+                        system_prompt: org.system_prompt || '',
                         settings: {
                             industry: '',
                             default_tone: 'Profesional',
@@ -88,6 +90,7 @@ export default function OrgSettingsPage() {
                 .from('organizations')
                 .update({
                     name: orgData.name,
+                    system_prompt: orgData.system_prompt,
                     settings: orgData.settings
                 })
                 .eq('id', orgData.id)
@@ -209,6 +212,21 @@ export default function OrgSettingsPage() {
                                             <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Rápido)</option>
                                         </select>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-zinc-700 mb-2">
+                                        System Prompt (Instrucciones Globales)
+                                    </label>
+                                    <p className="text-xs text-zinc-500 mb-2">
+                                        Define quién es el agente, cómo debe comportarse y qué reglas estrictas debe seguir.
+                                    </p>
+                                    <textarea
+                                        value={orgData.system_prompt || ''}
+                                        onChange={(e) => setOrgData({ ...orgData, system_prompt: e.target.value })}
+                                        className="w-full h-40 px-4 py-3 border border-zinc-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none resize-none"
+                                        placeholder="Eres un asistente experto en ventas... TU OBJETIVO es..."
+                                    />
                                 </div>
 
                                 <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 border-l-4 border-l-indigo-500">
