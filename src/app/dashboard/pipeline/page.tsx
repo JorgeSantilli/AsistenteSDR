@@ -36,12 +36,16 @@ type Deal = {
     created_at: string
 }
 
+import OpportunityDrawer from '@/components/dashboard/OpportunityDrawer'
+
 export default function PipelinePage() {
     const [deals, setDeals] = useState<Deal[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [filterStage, setFilterStage] = useState<string>('all')
+    const [selectedDealId, setSelectedDealId] = useState<string | null>(null)
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const supabase = createClient()
 
     useEffect(() => {
@@ -63,6 +67,11 @@ export default function PipelinePage() {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    const openDrawer = (id: string) => {
+        setSelectedDealId(id)
+        setIsDrawerOpen(true)
     }
 
     const filteredDeals = deals.filter(deal => {
@@ -118,7 +127,7 @@ export default function PipelinePage() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50">
+        <div className="flex flex-col h-full bg-zinc-50 relative">
             {/* Header */}
             <div className="bg-white border-b border-zinc-200 px-6 py-4">
                 <div className="flex items-center justify-between mb-4">
@@ -173,8 +182,8 @@ export default function PipelinePage() {
 
             {/* Table */}
             <div className="flex-1 overflow-auto">
-                <table className="w-full">
-                    <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0">
+                <table className="w-full border-collapse">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10">
                         <tr>
                             <th className="text-left px-6 py-3 text-xs font-semibold text-zinc-600 uppercase tracking-wider">
                                 To-do
@@ -217,8 +226,12 @@ export default function PipelinePage() {
                             </tr>
                         ) : (
                             filteredDeals.map((deal) => (
-                                <tr key={deal.id} className="hover:bg-zinc-50 transition-colors group">
-                                    <td className="px-6 py-4">
+                                <tr
+                                    key={deal.id}
+                                    onClick={() => openDrawer(deal.id)}
+                                    className="hover:bg-indigo-50/30 transition-colors group cursor-pointer border-l-2 border-transparent hover:border-indigo-500"
+                                >
+                                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                         <div className="flex items-start gap-2">
                                             <input type="checkbox" className="mt-1 rounded border-zinc-300" />
                                             <div className="text-sm">
@@ -239,7 +252,7 @@ export default function PipelinePage() {
                                             <div>
                                                 <p className="font-medium text-zinc-900 flex items-center gap-2">
                                                     {deal.contact_name}
-                                                    <span className="text-indigo-600 text-xs">📞 1</span>
+                                                    <span className="text-indigo-600 text-[10px] bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100 font-bold">Llamada 1</span>
                                                 </p>
                                                 <p className="text-sm text-zinc-500">{deal.company}</p>
                                             </div>
@@ -248,7 +261,7 @@ export default function PipelinePage() {
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2 text-sm text-zinc-600">
                                             <Clock size={14} className="text-zinc-400" />
-                                            {getRelativeTime(deal.last_interaction)}
+                                            {getRelativeTime(deal.last_activity)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -269,7 +282,7 @@ export default function PipelinePage() {
                                             </p>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                         <button className="p-2 hover:bg-zinc-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                                             <MoreVertical size={16} className="text-zinc-400" />
                                         </button>
@@ -285,6 +298,12 @@ export default function PipelinePage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSuccess={loadDeals}
+            />
+
+            <OpportunityDrawer
+                isOpen={isDrawerOpen}
+                onClose={() => setIsDrawerOpen(false)}
+                dealId={selectedDealId}
             />
         </div>
     )
