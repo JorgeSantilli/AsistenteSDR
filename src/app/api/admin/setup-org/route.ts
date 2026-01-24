@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
 
         // Check if org exists ONLY if it's the default one (dev mode)
         // If it's a new custom org, we usually want to create it, but let's check name to match logic
+        // Check if org exists
         const { data: existingOrgs } = await supabaseAdmin
             .from('organizations')
             .select('id')
@@ -60,6 +61,12 @@ export async function POST(req: NextRequest) {
             .limit(1)
 
         if (existingOrgs && existingOrgs.length > 0) {
+            // Security: If not the default dev org, prevent hijacking existing orgs by name
+            if (targetOrgName !== 'Pxsol Test') {
+                return NextResponse.json({
+                    error: `La organización '${targetOrgName}' ya existe. Por favor elige otro nombre o contacta a soporte.`
+                }, { status: 409 })
+            }
             orgId = existingOrgs[0].id
         } else {
             const { data: newOrg, error: orgError } = await supabaseAdmin

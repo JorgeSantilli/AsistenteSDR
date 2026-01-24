@@ -37,6 +37,12 @@ export default function CreateOrgPage() {
             })
 
             if (authError) throw authError
+
+            // Check for existing user (Supabase sometimes returns success for existing emails for security)
+            if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
+                throw new Error("Este correo electrónico ya está registrado. Por favor inicia sesión.")
+            }
+
             if (!authData.user) throw new Error("No se pudo crear el usuario")
 
             // 2. Create Organization via Admin API (bypasses RLS)
@@ -63,9 +69,6 @@ export default function CreateOrgPage() {
 
             if (!response.ok) {
                 console.error('Org creation failed:', result)
-                // We don't block the user, they can retry or support can fix it. 
-                // But let's show success for the account at least.
-                // Or maybe show specific error.
                 throw new Error(result.error || 'Error al configurar la organización')
             }
 
