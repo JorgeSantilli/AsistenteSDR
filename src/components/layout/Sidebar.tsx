@@ -115,10 +115,21 @@ export default function Sidebar() {
                     <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold border-2 border-indigo-400">
                         JS
                     </div>
-                    <div className="hidden lg:block overflow-hidden">
+                    <div className="hidden lg:block overflow-hidden flex-1">
                         <p className="text-sm font-medium truncate">Jorge Santilli</p>
                         <p className="text-xs text-indigo-300 truncate">SDR Lead</p>
                     </div>
+                    <button
+                        onClick={async () => {
+                            const supabase = await import('@/lib/supabase-browser').then(m => m.createClient())
+                            await supabase.auth.signOut()
+                            window.location.href = '/'
+                        }}
+                        className="p-2 text-indigo-300 hover:text-white hover:bg-indigo-600/50 rounded-lg transition-colors"
+                        title="Cerrar Sesión"
+                    >
+                        <LogOut size={18} />
+                    </button>
                 </div>
             </div>
         </div>

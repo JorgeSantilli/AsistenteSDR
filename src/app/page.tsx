@@ -42,7 +42,7 @@ export default function Home() {
               Iniciar Sesión
             </Link>
             <Link
-              href="/dashboard"
+              href="/signup/organization"
               className="bg-zinc-100 text-zinc-950 px-4 py-2 rounded-lg text-sm font-bold hover:bg-white transition-all shadow-lg shadow-white/5 flex items-center gap-2"
             >
               <Building2 size={16} />

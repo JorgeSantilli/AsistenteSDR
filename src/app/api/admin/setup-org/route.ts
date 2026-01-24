@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
             }
         })
 
-        const { userId } = await req.json()
+        const { userId, organizationName, fullName } = await req.json()
 
         if (!userId) {
             return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
@@ -47,13 +47,16 @@ export async function POST(req: NextRequest) {
             })
         }
 
-        // 2. Find or create "Pxsol Test" organization
+        // 2. Find or create Organization
         let orgId: string
+        const targetOrgName = organizationName || 'Pxsol Test'
 
+        // Check if org exists ONLY if it's the default one (dev mode)
+        // If it's a new custom org, we usually want to create it, but let's check name to match logic
         const { data: existingOrgs } = await supabaseAdmin
             .from('organizations')
             .select('id')
-            .eq('name', 'Pxsol Test')
+            .eq('name', targetOrgName)
             .limit(1)
 
         if (existingOrgs && existingOrgs.length > 0) {
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest) {
         } else {
             const { data: newOrg, error: orgError } = await supabaseAdmin
                 .from('organizations')
-                .insert({ name: 'Pxsol Test' })
+                .insert({ name: targetOrgName })
                 .select()
                 .single()
 
@@ -75,7 +78,7 @@ export async function POST(req: NextRequest) {
             .upsert({
                 id: userId,
                 organization_id: orgId,
-                full_name: 'Dev User'
+                full_name: fullName || 'Dev User'
             })
 
         if (upsertError) throw upsertError
