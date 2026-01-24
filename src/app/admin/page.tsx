@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { switchOrganization } from '@/app/actions/admin'
+import { switchOrganization } from '../actions/admin'
 
 export default async function AdminDashboard() {
     const supabase = await createClient()
