@@ -36,7 +36,7 @@ export default function OpportunityDrawer({ isOpen, onClose, dealId }: Opportuni
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [newNote, setNewNote] = useState('')
     const [showContactForm, setShowContactForm] = useState(false)
-    const [newContact, setNewContact] = useState({ full_name: '', email: '', job_title: '' })
+    const [newContact, setNewContact] = useState({ full_name: '', email: '', phone: '', job_title: '' })
     const [intelligenceSummary, setIntelligenceSummary] = useState<string | null>(null)
 
     const supabase = createClient()
@@ -162,7 +162,7 @@ export default function OpportunityDrawer({ isOpen, onClose, dealId }: Opportuni
 
             if (linkError) throw linkError
 
-            setNewContact({ full_name: '', email: '', job_title: '' })
+            setNewContact({ full_name: '', email: '', phone: '', job_title: '' })
             setShowContactForm(false)
             loadDealData()
         } catch (error) {
@@ -213,8 +213,8 @@ export default function OpportunityDrawer({ isOpen, onClose, dealId }: Opportuni
 
             {/* Drawer */}
             <div className={`
-                fixed top-0 left-0 h-screen bg-white shadow-2xl z-[101] w-full md:w-[600px] transition-transform duration-300 ease-in-out
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                fixed top-0 right-0 h-screen bg-white shadow-2xl z-[101] w-full md:w-[600px] transition-transform duration-300 ease-in-out
+                ${isOpen ? 'translate-x-0' : 'translate-x-full'}
             `}>
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-500">
@@ -390,6 +390,13 @@ export default function OpportunityDrawer({ isOpen, onClose, dealId }: Opportuni
                                                     onChange={e => setNewContact({ ...newContact, email: e.target.value })}
                                                     className="w-full text-sm border-zinc-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
                                                 />
+                                                <input
+                                                    type="tel"
+                                                    placeholder="Teléfono (ej: +54 9 11 ...)"
+                                                    value={newContact.phone}
+                                                    onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                                                    className="w-full text-sm border-zinc-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                                />
                                                 <button
                                                     className="w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all"
                                                 >
@@ -414,7 +421,10 @@ export default function OpportunityDrawer({ isOpen, onClose, dealId }: Opportuni
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-bold text-zinc-900">{link.contacts.full_name}</p>
-                                                            <p className="text-xs text-zinc-500">{link.contacts.job_title || 'Sin cargo'}</p>
+                                                            <p className="text-xs text-zinc-500">
+                                                                {link.contacts.job_title || 'Sin cargo'}
+                                                                {link.contacts.phone && ` • ${link.contacts.phone}`}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -7,65 +7,247 @@ export type Json =
     | Json[]
 
 export type Database = {
-    graphql_public: {
-        Tables: {
-            [_ in never]: never
-        }
-        Views: {
-            [_ in never]: never
-        }
-        Functions: {
-            graphql: {
-                Args: {
-                    operationName?: string
-                    query?: string
-                    variables?: Json
-                    extensions?: Json
-                }
-                Returns: Json
-            }
-        }
-        Enums: {
-            [_ in never]: never
-        }
-        CompositeTypes: {
-            [_ in never]: never
-        }
-    }
     public: {
         Tables: {
-            interactions: {
+            activities: {
+                Row: {
+                    content: string
+                    created_at: string | null
+                    deal_id: string | null
+                    id: string
+                    metadata: Json | null
+                    organization_id: string
+                    type: string
+                    user_id: string | null
+                }
+                Insert: {
+                    content: string
+                    created_at?: string | null
+                    deal_id?: string | null
+                    id?: string
+                    metadata?: Json | null
+                    organization_id: string
+                    type: string
+                    user_id?: string | null
+                }
+                Update: {
+                    content?: string
+                    created_at?: string | null
+                    deal_id?: string | null
+                    id?: string
+                    metadata?: Json | null
+                    organization_id?: string
+                    type?: string
+                    user_id?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "activities_deal_id_fkey"
+                        columns: ["deal_id"]
+                        isOneToOne: false
+                        referencedRelation: "deals"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "activities_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "activities_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            contacts: {
                 Row: {
                     created_at: string | null
+                    email: string | null
+                    full_name: string
                     id: string
-                    organization_id: string
-                    status: string | null
-                    transcript_full: string | null
-                    audio_url: string | null
+                    job_title: string | null
                     notes: string | null
-                    duration_seconds: number | null
+                    organization_id: string
+                    phone: string | null
                 }
                 Insert: {
                     created_at?: string | null
+                    email?: string | null
+                    full_name: string
                     id?: string
-                    organization_id: string
-                    status?: string | null
-                    transcript_full?: string | null
-                    audio_url?: string | null
+                    job_title?: string | null
                     notes?: string | null
-                    duration_seconds?: number | null
+                    organization_id: string
+                    phone?: string | null
                 }
                 Update: {
                     created_at?: string | null
+                    email?: string | null
+                    full_name?: string
                     id?: string
+                    job_title?: string | null
+                    notes?: string | null
+                    organization_id?: string
+                    phone?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "contacts_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            deal_contacts: {
+                Row: {
+                    contact_id: string
+                    created_at: string | null
+                    deal_id: string
+                    id: string
+                    is_primary: boolean | null
+                    role: string | null
+                }
+                Insert: {
+                    contact_id: string
+                    created_at?: string | null
+                    deal_id: string
+                    id?: string
+                    is_primary?: boolean | null
+                    role?: string | null
+                }
+                Update: {
+                    contact_id?: string
+                    created_at?: string | null
+                    deal_id?: string
+                    id?: string
+                    is_primary?: boolean | null
+                    role?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "deal_contacts_contact_id_fkey"
+                        columns: ["contact_id"]
+                        isOneToOne: false
+                        referencedRelation: "contacts"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "deal_contacts_deal_id_fkey"
+                        columns: ["deal_id"]
+                        isOneToOne: false
+                        referencedRelation: "deals"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            deals: {
+                Row: {
+                    company: string
+                    contact_email: string | null
+                    contact_name: string
+                    contact_phone: string | null
+                    created_at: string | null
+                    id: string
+                    last_activity: string | null
+                    organization_id: string
+                    probability: number | null
+                    stage: string
+                    status: string | null
+                    title: string
+                    tracking_config: Json | null
+                    value: number | null
+                }
+                Insert: {
+                    company: string
+                    contact_email?: string | null
+                    contact_name: string
+                    contact_phone?: string | null
+                    created_at?: string | null
+                    id?: string
+                    last_activity?: string | null
+                    organization_id: string
+                    probability?: number | null
+                    stage: string
+                    status?: string | null
+                    title: string
+                    tracking_config?: Json | null
+                    value?: number | null
+                }
+                Update: {
+                    company?: string
+                    contact_email?: string | null
+                    contact_name?: string
+                    contact_phone?: string | null
+                    created_at?: string | null
+                    id?: string
+                    last_activity?: string | null
+                    organization_id?: string
+                    probability?: number | null
+                    stage?: string
+                    status?: string | null
+                    title?: string
+                    tracking_config?: Json | null
+                    value?: number | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "deals_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    },
+                ]
+            }
+            interactions: {
+                Row: {
+                    audio_url: string | null
+                    created_at: string | null
+                    deal_id: string | null
+                    duration_seconds: number | null
+                    id: string
+                    notes: string | null
+                    organization_id: string
+                    status: string | null
+                    transcript_full: string | null
+                }
+                Insert: {
+                    audio_url?: string | null
+                    created_at?: string | null
+                    deal_id?: string | null
+                    duration_seconds?: number | null
+                    id?: string
+                    notes?: string | null
+                    organization_id: string
+                    status?: string | null
+                    transcript_full?: string | null
+                }
+                Update: {
+                    audio_url?: string | null
+                    created_at?: string | null
+                    deal_id?: string | null
+                    duration_seconds?: number | null
+                    id?: string
+                    notes?: string | null
                     organization_id?: string
                     status?: string | null
                     transcript_full?: string | null
-                    audio_url?: string | null
-                    notes?: string | null
-                    duration_seconds?: number | null
                 }
                 Relationships: [
+                    {
+                        foreignKeyName: "interactions_deal_id_fkey"
+                        columns: ["deal_id"]
+                        isOneToOne: false
+                        referencedRelation: "deals"
+                        referencedColumns: ["id"]
+                    },
                     {
                         foreignKeyName: "interactions_organization_id_fkey"
                         columns: ["organization_id"]
@@ -77,28 +259,37 @@ export type Database = {
             }
             knowledge_base: {
                 Row: {
-                    content: string
+                    content: string | null
                     created_at: string | null
-                    embedding: string | null
+                    file_name: string
+                    file_url: string | null
                     id: string
                     metadata: Json | null
                     organization_id: string
+                    title: string
+                    type: string | null
                 }
                 Insert: {
-                    content: string
+                    content?: string | null
                     created_at?: string | null
-                    embedding?: string | null
+                    file_name: string
+                    file_url?: string | null
                     id?: string
                     metadata?: Json | null
                     organization_id: string
+                    title: string
+                    type?: string | null
                 }
                 Update: {
-                    content?: string
+                    content?: string | null
                     created_at?: string | null
-                    embedding?: string | null
+                    file_name?: string
+                    file_url?: string | null
                     id?: string
                     metadata?: Json | null
                     organization_id?: string
+                    title?: string
+                    type?: string | null
                 }
                 Relationships: [
                     {
@@ -133,109 +324,34 @@ export type Database = {
             }
             profiles: {
                 Row: {
-                    avatar_url: string | null
                     created_at: string | null
                     full_name: string | null
                     id: string
-                    job_title: string | null
                     organization_id: string | null
-                    preferences: Json | null
-                    updated_at: string | null
+                    role: string | null
                 }
                 Insert: {
-                    avatar_url?: string | null
                     created_at?: string | null
                     full_name?: string | null
                     id: string
-                    job_title?: string | null
                     organization_id?: string | null
-                    preferences?: Json | null
-                    updated_at?: string | null
+                    role?: string | null
                 }
                 Update: {
-                    avatar_url?: string | null
                     created_at?: string | null
                     full_name?: string | null
                     id?: string
-                    job_title?: string | null
                     organization_id?: string | null
-                    preferences?: Json | null
-                    updated_at?: string | null
+                    role?: string | null
                 }
                 Relationships: [
-                    {
-                        foreignKeyName: "profiles_id_fkey"
-                        columns: ["id"]
-                        isOneToOne: true
-                        referencedRelation: "users"
-                        referencedColumns: ["id"]
-                    },
                     {
                         foreignKeyName: "profiles_organization_id_fkey"
                         columns: ["organization_id"]
                         isOneToOne: false
                         referencedRelation: "organizations"
                         referencedColumns: ["id"]
-                    }
-                ]
-            }
-            deals: {
-                Row: {
-                    company: string | null
-                    contact_email: string | null
-                    contact_name: string | null
-                    contact_phone: string | null
-                    created_at: string | null
-                    id: string
-                    last_activity: string | null
-                    organization_id: string | null
-                    probability: number | null
-                    stage: string | null
-                    status: string | null
-                    title: string | null
-                    tracking_config: Json | null
-                    value: number | null
-                }
-                Insert: {
-                    company?: string | null
-                    contact_email?: string | null
-                    contact_name?: string | null
-                    contact_phone?: string | null
-                    created_at?: string | null
-                    id?: string
-                    last_activity?: string | null
-                    organization_id?: string | null
-                    probability?: number | null
-                    stage?: string | null
-                    status?: string | null
-                    title?: string | null
-                    tracking_config?: Json | null
-                    value?: number | null
-                }
-                Update: {
-                    company?: string | null
-                    contact_email?: string | null
-                    contact_name?: string | null
-                    contact_phone?: string | null
-                    created_at?: string | null
-                    id?: string
-                    last_activity?: string | null
-                    organization_id?: string | null
-                    probability?: number | null
-                    stage?: string | null
-                    status?: string | null
-                    title?: string | null
-                    tracking_config?: Json | null
-                    value?: number | null
-                }
-                Relationships: [
-                    {
-                        foreignKeyName: "deals_organization_id_fkey"
-                        columns: ["organization_id"]
-                        isOneToOne: false
-                        referencedRelation: "organizations"
-                        referencedColumns: ["id"]
-                    }
+                    },
                 ]
             }
         }
@@ -243,178 +359,7 @@ export type Database = {
             [_ in never]: never
         }
         Functions: {
-            binary_quantize:
-            | {
-                Args: {
-                    "": string
-                }
-                Returns: string
-            }
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            halfvec_avg: {
-                Args: {
-                    "": number[]
-                }
-                Returns: unknown
-            }
-            halfvec_out: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            halfvec_send: {
-                Args: {
-                    "": unknown
-                }
-                Returns: string
-            }
-            halfvec_typmod_in: {
-                Args: {
-                    "": unknown[]
-                }
-                Returns: number
-            }
-            hnsw_bit_support: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            hnsw_halfvec_support: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            hnsw_sparsevec_support: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            hnswhandler: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            ivfflat_bit_support: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            ivfflat_halfvec_support: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            ivfflathandler: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            l2_norm:
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: number
-            }
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: number
-            }
-            l2_normalize:
-            | {
-                Args: {
-                    "": string
-                }
-                Returns: string
-            }
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            sparsevec_out: {
-                Args: {
-                    "": unknown
-                }
-                Returns: unknown
-            }
-            sparsevec_send: {
-                Args: {
-                    "": unknown
-                }
-                Returns: string
-            }
-            sparsevec_typmod_in: {
-                Args: {
-                    "": unknown[]
-                }
-                Returns: number
-            }
-            vector_avg: {
-                Args: {
-                    "": number[]
-                }
-                Returns: string
-            }
-            vector_dims:
-            | {
-                Args: {
-                    "": string
-                }
-                Returns: number
-            }
-            | {
-                Args: {
-                    "": unknown
-                }
-                Returns: number
-            }
-            vector_norm: {
-                Args: {
-                    "": string
-                }
-                Returns: number
-            }
-            vector_out: {
-                Args: {
-                    "": string
-                }
-                Returns: unknown
-            }
-            vector_send: {
-                Args: {
-                    "": string
-                }
-                Returns: string
-            }
-            vector_typmod_in: {
-                Args: {
-                    "": unknown[]
-                }
-                Returns: number
-            }
+            [_ in never]: never
         }
         Enums: {
             [_ in never]: never
@@ -424,100 +369,3 @@ export type Database = {
         }
     }
 }
-
-type PublicSchema = Database[Extract<keyof Database, "public">]
-
-export type Tables<
-    PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-            Row: infer R
-        }
-    ? R
-    : never
-    : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
-            Row: infer R
-        }
-    ? R
-    : never
-    : never
-
-export type TablesInsert<
-    PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-        Insert: infer I
-    }
-    ? I
-    : never
-    : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-        Insert: infer I
-    }
-    ? I
-    : never
-    : never
-
-export type TablesUpdate<
-    PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-    TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-        Update: infer U
-    }
-    ? U
-    : never
-    : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-        Update: infer U
-    }
-    ? U
-    : never
-    : never
-
-export type Enums<
-    PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
-    EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-    : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-    PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
-    | { schema: keyof Database },
-    CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-        schema: keyof Database
-    }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-    ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-    : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
