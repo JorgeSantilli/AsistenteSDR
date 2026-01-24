@@ -7,10 +7,10 @@ import { createClient } from '@/lib/supabase-server'
  */
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    props: { params: Promise<{ id: string }> }
 ) {
-    // En Next.js 16, params DEBE ser esperado asíncronamente
-    const { id } = await params
+    const params = await props.params;
+    const { id } = params;
 
     try {
         const { notes } = await request.json()
